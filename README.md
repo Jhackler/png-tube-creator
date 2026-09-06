@@ -20,6 +20,20 @@ No installation required. Just run `ASAdventurer.exe` and open your browser.
 2. Your browser will open to `http://localhost:3001`
 3. Follow the 4-step pipeline below
 
+### Linux launcher
+
+`launch.sh` is a portable, distro-agnostic launcher for Debian/Ubuntu, Fedora, and Arch (and most other glibc distros). Keep it in the repo root.
+
+```bash
+chmod +x launch.sh
+./launch.sh            # install Node + deps if missing, then start
+./launch.sh setup      # install only
+./launch.sh update     # git pull this clone, reinstall deps, start
+./launch.sh start      # start only
+```
+
+It uses a system Node.js v18+ if you already have one. Otherwise it downloads an official portable Node runtime into `./runtime/` (no root required). `npm install` is skipped when dependencies are already present.
+
 ---
 
 ## The Pipeline
@@ -109,7 +123,7 @@ No installation required. Just run `ASAdventurer.exe` and open your browser.
 
 Access the Settings tab to configure:
 
-- **OpenAI API Key** — Required for AI sprite generation (Step 1, Generate mode)
+- **OpenAI API key** — Required for AI sprite generation (Step 1, Generate mode)
 - **Google Gemini API Key** — Required for AI video generation (Step 2)
 
 API keys are stored locally in your browser's storage. They are never sent anywhere except directly to the respective API services.
@@ -136,7 +150,7 @@ The exported WebM files also work with any OBS browser source, PNGtuber app, or 
 
 ## System Requirements
 
-- **OS:** Windows 10/11 (64-bit)
+- **OS:** Windows 10/11 (64-bit) or Linux (Debian/Fedora/Arch and most glibc distros via `launch.sh`)
 - **Browser:** Chrome, Edge, or Firefox (opens automatically)
 - **Internet:** Required only for AI generation steps (Steps 1-2). Steps 3-4 work fully offline.
 - **Disk Space:** ~40 MB for the application
@@ -149,6 +163,7 @@ The exported WebM files also work with any OBS browser source, PNGtuber app, or 
 ASAdventurer/
 ├── ASAdventurer.exe          ← Main application (double-click to run)
 ├── Start AS Adventurer.bat   ← Launcher with console output
+├── launch.sh                 ← Linux launcher
 ├── README.md                 ← This file
 ├── icon.ico                  ← Application icon
 └── public/                   ← UI files (do not modify)
