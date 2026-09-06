@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
-# AS Adventurer Creator — portable Linux launcher
-# Drop this in the repo root. Works on Debian/Ubuntu, Fedora, and Arch.
-# Usage:
-#   ./launch.sh            setup if needed, then start
-#   ./launch.sh setup      install runtime + npm deps only
-#   ./launch.sh update     git pull this fork, reinstall deps, start
-#   ./launch.sh start      start only (fails if setup was never run)
+# AS Adventurer Creator — portable Linux TUI launcher
+# Lives in the repo root. Works on Debian/Ubuntu, Fedora, and Arch.
+#
+# Double-click or run from a terminal. If launched from a file manager
+# with no tty, this opens a terminal window. The app runs in that
+# window — close it (or Ctrl+C) and the server dies with it.
 
 set -euo pipefail
 
@@ -21,33 +20,62 @@ cd "$ROOT"
 RUNTIME_DIR="$ROOT/runtime"
 NODE_BIN=""
 NPM_BIN=""
+SELF="$ROOT/launch.sh"
 
 log()  { printf '  %s\n' "$*"; }
 ok()   { printf '  [OK] %s\n' "$*"; }
 step() { printf '\n  >> %s\n' "$*"; }
+warn() { printf '  [!] %s\n' "$*"; }
 die()  { printf '\n  [ERROR] %s\n\n' "$*" >&2; exit 1; }
 have() { command -v "$1" >/dev/null 2>&1; }
-
-usage() {
-  cat <<EOF
-
-  $APP_NAME — Linux launcher
-  ============================================
-  ./launch.sh            setup if needed, then start
-  ./launch.sh setup      install Node + npm deps only
-  ./launch.sh update     git pull, reinstall deps, start
-  ./launch.sh start      start without installing
-
-  Put this script in the repo root (next to package.json
-  and server.js) and run it from anywhere.
-
-EOF
-}
 
 need_repo_root() {
   [[ -f "$ROOT/package.json" && -f "$ROOT/server.js" ]] || \
     die "launch.sh must live in the repo root (missing package.json or server.js).
   Current directory: $ROOT"
+}
+
+open_in_terminal() {
+  [[ -n "${LAUNCH_SH_IN_TERM:-}" ]] && return 0
+  if [[ -t 0 && -t 1 ]]; then
+    return 0
+  fi
+
+  export LAUNCH_SH_IN_TERM=1
+  local title="AS-Adventurer-Creator"
+
+  local runners=(
+    "konsole --title ${title} -e"
+    "gnome-terminal --title=${title} --"
+    "xfce4-terminal --title=${title} -e"
+    "mate-terminal --title=${title} -e"
+    "tilix --title=${title} -e"
+    "kitty --title ${title}"
+    "alacritty --title ${title} -e"
+    "wezterm start --"
+    "foot -T ${title}"
+    "xterm -T ${title} -e"
+    "urxvt -title ${title} -e"
+    "lxterminal -t ${title} -e"
+    "terminator -T ${title} -e"
+    "kgx --"
+  )
+
+  local r cmd
+  for r in "${runners[@]}"; do
+    cmd="${r%% *}"
+    have "$cmd" || continue
+    # shellcheck disable=SC2086
+    exec $r bash "$SELF" "$@"
+  done
+
+  local msg="No terminal emulator found. Install Konsole (or gnome-terminal, kitty, xterm) and run: bash \"$SELF\""
+  if have kdialog; then
+    kdialog --error "$msg" || true
+  elif have zenity; then
+    zenity --error --text="$msg" || true
+  fi
+  die "$msg"
 }
 
 sudo_cmd() {
@@ -69,7 +97,6 @@ detect_pkg_manager() {
   fi
 }
 
-# Install only packages that are actually missing.
 install_system_packages() {
   local needed=() pkg
   for pkg in "$@"; do
@@ -81,15 +108,9 @@ install_system_packages() {
       ca-certificates)
         [[ -d /etc/ssl/certs ]] || needed+=("$pkg")
         ;;
-      nodejs)
-        have node || needed+=("$pkg")
-        ;;
-      npm)
-        have npm || needed+=("$pkg")
-        ;;
-      *)
-        needed+=("$pkg")
-        ;;
+      nodejs) have node || needed+=("$pkg") ;;
+      npm)    have npm  || needed+=("$pkg") ;;
+      *)      needed+=("$pkg") ;;
     esac
   done
   [[ ${#needed[@]} -eq 0 ]] && return 0
@@ -102,24 +123,13 @@ install_system_packages() {
       sudo_cmd apt-get update -y || return 1
       sudo_cmd apt-get install -y "${needed[@]}"
       ;;
-    dnf)
-      sudo_cmd dnf install -y "${needed[@]}"
-      ;;
-    yum)
-      sudo_cmd yum install -y "${needed[@]}"
-      ;;
+    dnf) sudo_cmd dnf install -y "${needed[@]}" ;;
+    yum) sudo_cmd yum install -y "${needed[@]}" ;;
     pacman)
-      local arch_pkgs=()
-      for pkg in "${needed[@]}"; do
-        case "$pkg" in
-          ca-certificates) arch_pkgs+=("ca-certificates") ;;
-          *) arch_pkgs+=("$pkg") ;;
-        esac
-      done
-      sudo_cmd pacman -Sy --noconfirm --needed "${arch_pkgs[@]}"
+      sudo_cmd pacman -Sy --noconfirm --needed "${needed[@]}"
       ;;
     *)
-      log "No supported package manager found (apt/dnf/yum/pacman)."
+      warn "No supported package manager found (apt/dnf/yum/pacman)."
       return 1
       ;;
   esac
@@ -133,6 +143,8 @@ node_major() {
 
 pick_existing_node() {
   local candidate major
+  NODE_BIN=""
+  NPM_BIN=""
 
   if [[ -x "$RUNTIME_DIR/bin/node" ]]; then
     major="$(node_major "$RUNTIME_DIR/bin/node")"
@@ -158,11 +170,14 @@ pick_existing_node() {
         NPM_BIN=""
       fi
       return 0
-    else
-      log "System Node $($candidate -v) is too old (need v${NODE_MIN_MAJOR}+). Will use a portable runtime."
     fi
   fi
   return 1
+}
+
+app_ready() {
+  pick_existing_node || return 1
+  [[ -d "$ROOT/node_modules/express" && -f "$ROOT/server.js" ]]
 }
 
 node_arch() {
@@ -170,7 +185,7 @@ node_arch() {
     x86_64|amd64) echo "linux-x64" ;;
     aarch64|arm64) echo "linux-arm64" ;;
     armv7l) echo "linux-armv7l" ;;
-    *) die "Unsupported CPU arch: $(uname -m). Need x86_64, arm64, or armv7l." ;;
+    *) echo "" ;;
   esac
 }
 
@@ -188,6 +203,7 @@ download() {
 install_portable_node() {
   local arch tarball url tmpdir extracted
   arch="$(node_arch)"
+  [[ -n "$arch" ]] || { warn "Unsupported CPU arch: $(uname -m)"; return 1; }
   tarball="node-v${NODE_PORTABLE_VERSION}-${arch}.tar.gz"
   url="https://nodejs.org/dist/v${NODE_PORTABLE_VERSION}/${tarball}"
 
@@ -196,22 +212,21 @@ install_portable_node() {
 
   have curl || have wget || install_system_packages curl ca-certificates || true
   have tar || install_system_packages tar || true
-  have curl || have wget || die "Need curl or wget to download Node.js."
-  have tar || die "Need tar to unpack Node.js."
+  have curl || have wget || { warn "Need curl or wget to download Node.js."; return 1; }
+  have tar || { warn "Need tar to unpack Node.js."; return 1; }
 
   mkdir -p "$RUNTIME_DIR"
   tmpdir="$(mktemp -d)"
-  trap 'rm -rf "$tmpdir"' RETURN
+  # shellcheck disable=SC2064
+  trap "rm -rf '$tmpdir'" RETURN
 
-  download "$url" "$tmpdir/$tarball" || die "Failed to download $url"
+  download "$url" "$tmpdir/$tarball" || { warn "Failed to download $url"; return 1; }
   tar -xzf "$tmpdir/$tarball" -C "$tmpdir"
   extracted="$(find "$tmpdir" -maxdepth 1 -type d -name "node-v${NODE_PORTABLE_VERSION}-*" | head -n1)"
-  [[ -n "$extracted" ]] || die "Unpack failed."
+  [[ -n "$extracted" ]] || { warn "Unpack failed."; return 1; }
 
-  mkdir -p "$RUNTIME_DIR"
   cp -a "$extracted"/. "$RUNTIME_DIR/"
-
-  [[ -x "$RUNTIME_DIR/bin/node" ]] || die "Portable Node.js extract looks broken."
+  [[ -x "$RUNTIME_DIR/bin/node" ]] || { warn "Portable Node.js extract looks broken."; return 1; }
   ok "Portable Node.js $($RUNTIME_DIR/bin/node -v) ready in runtime/"
 }
 
@@ -220,7 +235,7 @@ ensure_fetch_tools() {
     return 0
   fi
   install_system_packages curl ca-certificates || \
-    log "Could not install curl automatically. Portable Node download will fail without it."
+    warn "Could not install curl automatically."
 }
 
 ensure_node() {
@@ -240,14 +255,13 @@ ensure_node() {
     log "Skipping distro Node install (no sudo / no package manager). Using portable runtime."
   fi
 
-  install_portable_node
-  pick_existing_node || die "Node.js is still not available after install."
+  install_portable_node || return 1
+  pick_existing_node || { warn "Node.js is still not available after install."; return 1; }
   ok "Using Node $($NODE_BIN -v) ($NODE_BIN)"
 }
 
 run_npm() {
-  [[ -n "$NPM_BIN" ]] || die "npm not found. Re-run ./launch.sh setup"
-  # NPM_BIN may be a single path or "node npm-cli.js"
+  [[ -n "$NPM_BIN" ]] || { warn "npm not found."; return 1; }
   # shellcheck disable=SC2086
   PATH="$(dirname "$NODE_BIN"):$PATH" $NPM_BIN "$@"
 }
@@ -260,91 +274,198 @@ ensure_npm_deps() {
   fi
   step "Installing npm packages (production)"
   run_npm install --omit=dev || run_npm install
-  ok "npm install finished"
 }
 
 maybe_placeholders() {
   return 0
 }
 
-do_update() {
-  step "Updating from git remote"
-  have git || install_system_packages git || true
-  have git || die "git is required for update. Install git and re-run."
-  [[ -d "$ROOT/.git" ]] || die "This folder is not a git clone, so there is nothing to pull.
-  Clone your fork first, then run ./launch.sh update from that clone."
-
-  if [[ -n "$(git status --porcelain 2>/dev/null || true)" ]]; then
-    log "Working tree has local changes. Pull will use --ff-only and may stop."
+do_git_pull() {
+  if ! have git; then
+    install_system_packages git || true
+  fi
+  if ! have git; then
+    warn "git is not installed; skipped repo update."
+    return 0
+  fi
+  if [[ ! -d "$ROOT/.git" ]]; then
+    warn "This folder is not a git clone; skipped git pull."
+    return 0
   fi
 
-  git pull --ff-only || die "git pull failed (non-fast-forward or local changes).
-  Resolve that in this repo, then re-run ./launch.sh update"
-  ok "Repo is up to date ($(git rev-parse --short HEAD))"
+  step "Updating from git remote"
+  if [[ -n "$(git status --porcelain 2>/dev/null || true)" ]]; then
+    warn "Working tree has local changes. Pull is --ff-only and may stop."
+  fi
+  if git pull --ff-only; then
+    ok "Repo is up to date ($(git rev-parse --short HEAD))"
+  else
+    warn "git pull failed (non-fast-forward or local changes). Install still ran locally."
+    return 1
+  fi
 }
 
-start_app() {
-  [[ -x "$NODE_BIN" || -n "$NODE_BIN" ]] || die "Node is not set up. Run ./launch.sh setup"
-  [[ -f "$ROOT/server.js" ]] || die "server.js missing."
-  printf '\n  ============================================\n'
-  printf '   %s — starting\n' "$APP_NAME"
-  printf '  ============================================\n\n'
+pause() {
+  printf '\n  Press Enter to return to the menu.'
+  read -r _ || true
+}
+
+do_install_update() {
+  printf '\n'
+  log "Install / Update"
+  log "--------------------------------------------"
+  ensure_fetch_tools
+  do_git_pull || true
+  ensure_node || { warn "Node install failed."; pause; return 1; }
+  ensure_npm_deps 1 || { warn "npm install failed."; pause; return 1; }
+  maybe_placeholders
+  printf '\n'
+  ok "Install / Update finished."
+  pause
+}
+
+do_launch() {
+  if ! app_ready; then
+    warn "No usable build yet. Run Install / Update first."
+    pause
+    return 0
+  fi
+
+  printf '\n'
+  log "============================================"
+  log "$APP_NAME — running in this window"
+  log "============================================"
   log "$APP_HINT"
   [[ -n "${APP_HINT2:-}" ]] && log "$APP_HINT2"
-  log "Press Ctrl+C to stop."
+  log "Close this terminal or press Ctrl+C to stop."
   printf '\n'
-  exec "$NODE_BIN" "$ROOT/server.js"
+
+  set +e
+  "$NODE_BIN" "$ROOT/server.js"
+  local rc=$?
+  set -e
+
+  printf '\n'
+  if [[ $rc -eq 130 || $rc -eq 143 ]]; then
+    ok "Stopped."
+  elif [[ $rc -ne 0 ]]; then
+    warn "Server exited with code $rc."
+  else
+    ok "Server exited."
+  fi
+  pause
 }
 
-banner() {
-  printf '\n  ============================================\n'
-  printf '   %s — Linux launcher\n' "$APP_NAME"
-  printf '  ============================================\n'
-  log "Repo root: $ROOT"
+short_path() {
+  local p="$1"
+  if [[ ${#p} -gt 42 ]]; then
+    printf '…%s' "${p: -41}"
+  else
+    printf '%s' "$p"
+  fi
+}
+
+draw_menu() {
+  local ready_label status
+  if app_ready; then
+    status="ready to launch"
+    ready_label="[1]  Launch"
+  else
+    status="not installed yet"
+    ready_label="[1]  Launch   (unavailable — install first)"
+  fi
+
+  clear 2>/dev/null || printf '\n'
+  cat <<EOF
+
+  ┌──────────────────────────────────────────────┐
+  │  ${APP_NAME}
+  │  $(short_path "$ROOT")
+  ├──────────────────────────────────────────────┤
+  │  Status: ${status}
+  │
+  │  ${ready_label}
+  │  [2]  Install / Update
+  │  [q]  Quit
+  └──────────────────────────────────────────────┘
+
+  Close this window to kill anything it started.
+
+EOF
+  printf '  Choose: '
+}
+
+tui_loop() {
+  local choice
+  while true; do
+    draw_menu
+    if ! read -r choice; then
+      printf '\n'
+      exit 0
+    fi
+    case "$choice" in
+      1)
+        do_launch
+        ;;
+      2)
+        do_install_update
+        ;;
+      q|Q|quit|exit|3)
+        printf '\n'
+        exit 0
+        ;;
+      *)
+        warn "Unknown choice."
+        sleep 0.6
+        ;;
+    esac
+  done
+}
+
+usage() {
+  cat <<EOF
+
+  $APP_NAME — Linux TUI launcher
+
+  ./launch.sh              open the menu (spawns a terminal if needed)
+  ./launch.sh menu         same
+  ./launch.sh launch       start the app in this terminal
+  ./launch.sh setup        install / update, then return
+  ./launch.sh --help
+
+  Double-click from a file manager is fine: a terminal window opens
+  and the server is tied to that window.
+
+EOF
 }
 
 main() {
-  local cmd="${1:-run}"
+  local cmd="${1:-menu}"
   case "$cmd" in
     -h|--help|help) usage; exit 0 ;;
-    setup|update|start|run) ;;
-    *) usage; die "Unknown command: $cmd" ;;
   esac
 
-  banner
   need_repo_root
+  open_in_terminal "$@"
 
   case "$cmd" in
-    start)
-      pick_existing_node || die "Node.js not found. Run ./launch.sh (or ./launch.sh setup) first."
-      [[ -d "$ROOT/node_modules" ]] || die "Dependencies missing. Run ./launch.sh setup first."
-      start_app
+    launch|start)
+      if ! app_ready; then
+        die "Not installed yet. Run ./launch.sh and pick Install / Update."
+      fi
+      do_launch
       ;;
-    setup)
-      ensure_fetch_tools
-      ensure_node
-      ensure_npm_deps 0
-      maybe_placeholders
-      printf '\n'
-      ok "Setup complete. Run ./launch.sh to start."
-      printf '\n'
+    setup|update|install)
+      do_install_update
       ;;
-    update)
-      ensure_fetch_tools
-      do_update
-      ensure_node
-      ensure_npm_deps 1
-      maybe_placeholders
-      start_app
+    menu|run|"")
+      tui_loop
       ;;
-    run)
-      ensure_fetch_tools
-      ensure_node
-      ensure_npm_deps 0
-      maybe_placeholders
-      start_app
+    *)
+      usage
+      die "Unknown command: $cmd"
       ;;
   esac
 }
 
-main "${1:-run}"
+main "${1:-menu}"
