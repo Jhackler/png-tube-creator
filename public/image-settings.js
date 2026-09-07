@@ -28,6 +28,18 @@
     window.ASAdventurer = window.ASAdventurer || {};
     window.ASAdventurer.getImageSettings = getImageSettings;
 
+    function showGenError(text) {
+        window.__lastImageGenError = text;
+        function paint() {
+            var el = document.getElementById('sgStatus');
+            if (!el) return;
+            el.innerHTML = '<div class="status-msg error">❌ ' + text + '</div>';
+        }
+        paint();
+        setTimeout(paint, 80);
+        setTimeout(paint, 400);
+    }
+
     function applyProviderUI(provider) {
         var isOr = provider === 'openrouter';
         storeSet('image_provider', isOr ? 'openrouter' : 'openai');
@@ -84,19 +96,16 @@
         var openaiInput = document.getElementById('settingsOpenAIKey');
         var panel = openaiInput && openaiInput.closest('.glass-panel');
         if (!panel) return false;
-
         var title = panel.querySelector('.panel-title');
         if (title) title.innerHTML = '<span class="title-icon">🤖</span> Image API';
         var sub = panel.querySelector('.panel-subtitle');
         if (sub) sub.textContent = 'Used by Sprite Prep → AI Generate. Keys stay in this browser.';
-
         var wrap = document.createElement('div');
         wrap.id = 'imageProviderWrap';
         wrap.innerHTML =
             '<div class="provider-radios" role="radiogroup" aria-label="Image provider">' +
             '<label class="provider-radio"><input type="radio" name="image-provider" id="imageProviderOpenai" value="openai"> <span>OpenAI</span></label>' +
-            '<label class="provider-radio"><input type="radio" name="image-provider" id="imageProviderOpenrouter" value="openrouter"> <span>OpenRouter</span></label>' +
-            '</div>' +
+            '<label class="provider-radio"><input type="radio" name="image-provider" id="imageProviderOpenrouter" value="openrouter"> <span>OpenRouter</span></label></div>' +
             '<div id="imageProviderBadge" class="help-text">Active: OpenAI</div>' +
             '<div id="imageOpenaiBlock"></div>' +
             '<div id="imageOpenrouterBlock" hidden>' +
@@ -110,7 +119,6 @@
             '<select id="settingsOpenRouterModel" style="flex:1"><option value="">Refresh models to load the list</option></select>' +
             '<button class="btn btn-sm btn-secondary" id="settingsOpenRouterRefresh" type="button">Refresh models</button></div>' +
             '<div id="settingsOpenRouterStatus"></div></div>';
-
         var openaiBlock = wrap.querySelector('#imageOpenaiBlock');
         var row = panel.querySelector('.api-key-row');
         var status = document.getElementById('settingsOpenAIStatus');
@@ -121,7 +129,6 @@
         panel.insertBefore(wrap, row || panel.lastChild);
         if (row) openaiBlock.appendChild(row);
         if (status) openaiBlock.appendChild(status);
-
         if (!document.getElementById('image-provider-style')) {
             var style = document.createElement('style');
             style.id = 'image-provider-style';
@@ -142,26 +149,16 @@
         var radioOpenai = document.getElementById('imageProviderOpenai');
         var radioOr = document.getElementById('imageProviderOpenrouter');
         if (!radioOpenai || !radioOr) return;
-
         if (orInput) orInput.value = storeGet('openrouter_api_key') || '';
         applyProviderUI(getImageSettings().provider);
         try {
             var cached = JSON.parse(storeGet('openrouter_models_cache') || '[]');
             if (Array.isArray(cached) && cached.length) fillModelSelect(cached, storeGet('openrouter_model'));
         } catch (e) {}
-
-        function onProviderClick(ev) {
-            var input = ev.target && ev.target.closest ? ev.target.closest('input[name="image-provider"]') : null;
-            if (!input) return;
-            applyProviderUI(input.value);
-        }
         radioOpenai.addEventListener('change', function () { applyProviderUI('openai'); });
         radioOr.addEventListener('change', function () { applyProviderUI('openrouter'); });
         radioOpenai.addEventListener('click', function () { applyProviderUI('openai'); });
         radioOr.addEventListener('click', function () { applyProviderUI('openrouter'); });
-        var group = document.querySelector('.provider-radios');
-        if (group) group.addEventListener('click', onProviderClick);
-
         if (orToggle && orInput) orToggle.addEventListener('click', function () {
             var hide = orInput.type === 'password';
             orInput.type = hide ? 'text' : 'password';
@@ -204,7 +201,6 @@
     function installGenerateHooks() {
         if (window.__imageProviderHooks) return;
         window.__imageProviderHooks = true;
-
         localStorage.getItem = function (key) {
             if (key === 'openai_api_key') {
                 var provider = storeGet('image_provider');
@@ -212,13 +208,14 @@
             }
             return storeGet(key);
         };
-
         window.fetch = function (url, opts) {
             var path = typeof url === 'string' ? url : ((url && url.url) || '');
             if (path === '/api/generate' || path === '/api/edits' || path === '/api/image/generate') {
                 var settings = getImageSettings();
                 if (settings.provider === 'openrouter' && !settings.model) {
-                    return Promise.reject(new Error('Pick an OpenRouter image model in Settings (Refresh models).'));
+                    var miss = 'Pick an OpenRouter image model in Settings (Refresh models).';
+                    showGenError(miss);
+                    return Promise.reject(new Error(miss));
                 }
                 opts = opts ? Object.assign({}, opts) : {};
                 var headers = {};
@@ -237,7 +234,15 @@
                     } catch (e) {}
                 }
                 console.log('[Image API] generate via', settings.provider, settings.model || '');
-                return nativeFetch('/api/image/generate', opts);
+                return nativeFetch('/api/image/generate', opts).then(function (resp) {
+                    if (!resp.ok) {
+                        resp.clone().json().then(function (data) {
+                            var msg = (data && data.error && data.error.message) || ('HTTP ' + resp.status);
+                            showGenError(settings.provider + ' — ' + msg);
+                        }).catch(function () { showGenError(settings.provider + ' — HTTP ' + resp.status); });
+                    }
+                    return resp;
+                });
             }
             if (path === '/api/chat') {
                 opts = opts ? Object.assign({}, opts) : {};
