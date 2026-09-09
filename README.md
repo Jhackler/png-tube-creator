@@ -184,6 +184,13 @@ png-tube-creator/
 
 ---
 
+## Docs
+
+- [`docs/layout.md`](docs/layout.md) — tabs, cards, tooltips, pipeline (stable)
+- [`docs/theme.md`](docs/theme.md) — CSS variables; change these to recolor
+
+---
+
 ## Tips & Tricks
 
 - **Best chroma key results:** Use **magenta** (`#FF00FF`) as your key color — it rarely appears in character art.

@@ -28,20 +28,12 @@ Companion: [Jhackler/Ai-png-tuber-overlay](https://github.com/Jhackler/Ai-png-tu
 - Biggest file: `public/model-exporter.js` (chroma key + GIF/WebM).
 - Default canvas 1280×720, sprite bottom-anchored. Preferred key: magenta `#FF00FF`.
 
-## UI that still applies
+## UI docs
 
-Keep the existing dark gold look. Do not restyle unless asked.
+- Layout / UX (tabs, tooltips, handoff): [`docs/layout.md`](docs/layout.md)
+- Colors / type / radii (retheme here): [`docs/theme.md`](docs/theme.md)
 
-```css
---bg-deep: #1a1a2e;
---bg-panel: #16213e;
---accent-gold: #dbb858;   /* brand */
---accent-red: #e94560;
---text: #e0e0e0;
---text-muted: #8899aa;
-```
-
-Font: Inter / Segoe UI. Tooltips on new controls. Numbered pipeline ①②③④. “Send to next step” between tabs.
+Live tokens: `public/style.css` `:root`. Do not copy palettes into this file.
 
 ## Overlay filename contract
 
