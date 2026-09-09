@@ -1,6 +1,8 @@
 # ⚔️ AS Adventurer Creator
 
-**VTuber Creation Pipeline by Angel's Sword Studios**
+**VTuber Creation Pipeline** — Linux-first hard fork of Angel's Sword Studios' AS Adventurer Creator.
+
+Repo: [Jhackler/png-tube-creator](https://github.com/Jhackler/png-tube-creator)
 
 *Design · Generate · Prepare · Export*
 
@@ -8,21 +10,26 @@
 
 ## What Is This?
 
-AS Adventurer Creator is a standalone desktop tool that lets you create animated VTuber / PNGtuber assets from scratch. It walks you through a simple 4-step pipeline — from a static sprite all the way to a transparent, looping animated model ready for streaming.
+A local 4-step pipeline: static sprite → optional AI video → loop prep → transparent WebM/GIF for streaming overlays.
 
-No installation required. Just run `ASAdventurer.exe` and open your browser.
+This fork's focus is **Linux** (`launch.sh` TUI installer) plus extra image-API options. Windows launchers still exist from upstream; they are not the supported path here.
+
+Companion overlay (separate repo): [Jhackler/Ai-png-tuber-overlay](https://github.com/Jhackler/Ai-png-tuber-overlay) on port **3000**. This creator listens on **3001**.
 
 ---
 
-## Quick Start
+## Quick Start (Linux)
 
-1. **Double-click** `ASAdventurer.exe` (or use `Start AS Adventurer.bat`)
-2. Your browser will open to `http://localhost:3001`
-3. Follow the 4-step pipeline below
+```bash
+chmod +x launch.sh
+./launch.sh            # install Node + deps if missing, then start
+```
+
+Browser: `http://localhost:3001`
 
 ### Linux launcher
 
-`launch.sh` is a portable, distro-agnostic launcher for Debian/Ubuntu, Fedora, and Arch (and most other glibc distros). Keep it in the repo root.
+`launch.sh` is a portable TUI launcher for Debian/Ubuntu, Fedora, and Arch (and most other glibc distros). Keep it in the repo root. Double-click from a file manager opens a terminal; close that window (or Ctrl+C) and the server dies with it.
 
 ```bash
 chmod +x launch.sh
@@ -44,7 +51,7 @@ It uses a system Node.js v18+ if you already have one. Otherwise it downloads an
 
 **Two modes:**
 - **Upload Mode** — Drag in an existing character sprite (PNG with transparency). The tool places it on a colored background automatically.
-- **Generate Mode** — Describe your character in a text prompt and generate a sprite using AI (requires an OpenAI API key).
+- **Generate Mode** — Describe your character and generate a sprite via **OpenAI** or **OpenRouter** (Settings). OpenRouter's model list is filtered to image models that accept reference images.
 
 **Key features:**
 - Pick your chroma key color (magenta, green, blue, or custom)
@@ -123,10 +130,11 @@ It uses a system Node.js v18+ if you already have one. Otherwise it downloads an
 
 Access the Settings tab to configure:
 
-- **OpenAI API key** — Required for AI sprite generation (Step 1, Generate mode)
-- **Google Gemini API Key** — Required for AI video generation (Step 2)
+- **Image API** — OpenAI (`gpt-image-2`) or OpenRouter (refreshable catalog, image+reference models only)
+- **Matching API key** — OpenAI or OpenRouter, depending on the radio
+- **Google Gemini API key** — Required for AI video generation (Step 2)
 
-API keys are stored locally in your browser's storage. They are never sent anywhere except directly to the respective API services.
+API keys stay in the browser's `localStorage`. They are only sent through the local proxy to the provider you picked.
 
 > **💡 No API keys needed** if you bring your own sprite images and animated videos. Steps 3-4 work entirely offline.
 
@@ -134,15 +142,15 @@ API keys are stored locally in your browser's storage. They are never sent anywh
 
 ## Using with AS Reactive Overlay
 
-The assets you export from AS Adventurer are designed to work seamlessly with **AS Reactive Overlay** (our streaming overlay tool):
+The assets you export are meant for the companion overlay ([Jhackler/Ai-png-tuber-overlay](https://github.com/Jhackler/Ai-png-tuber-overlay)):
 
-1. Export your character animations as transparent WebM files using the naming presets:
-   - `character_idle.webm` — Default idle animation
-   - `character_speaking.webm` — Talking animation
-   - `character_intro.webm` — Entrance animation
-   - `character_outro.webm` — Exit animation
-2. Place the exported files into Reactive Overlay's `public/assets/` folder
-3. Reactive Overlay will automatically load and display them as your VTuber's animated states
+1. Export transparent WebM (Adventurer mode) using the filename presets. Overlay **state** files are named like this (only `neutral_idle` is required):
+   - `neutral_idle.webm` / `neutral_speaking.webm`
+   - `happy_idle.webm` / `happy_speaking.webm` (same for `sad`, `surprised`)
+   - `eyes_closed.webm`, `typing.webm`
+   Creator also has Idle / Intro / Outro / Speaking / Animation presets (`{name}_idle`, `{name}_intro`, …) — those are for emotes/intros, not the overlay expression keys.
+2. Drop files into the overlay repo's `public/assets/` or `public/assets/<ModelName>/`.
+3. Overlay loads matching filenames as expression states.
 
 The exported WebM files also work with any OBS browser source, PNGtuber app, or other streaming tools that support transparent video.
 
@@ -150,29 +158,28 @@ The exported WebM files also work with any OBS browser source, PNGtuber app, or 
 
 ## System Requirements
 
-- **OS:** Windows 10/11 (64-bit) or Linux (Debian/Fedora/Arch and most glibc distros via `launch.sh`)
-- **Browser:** Chrome, Edge, or Firefox (opens automatically)
-- **Internet:** Required only for AI generation steps (Steps 1-2). Steps 3-4 work fully offline.
-- **Disk Space:** ~40 MB for the application
+- **OS:** Linux (Debian/Fedora/Arch and most glibc distros). `launch.sh` is the supported entry point.
+- **Node:** v18+ on PATH, or a portable runtime downloaded into `./runtime/` (no root)
+- **Browser:** Chrome, Firefox, or similar
+- **Internet:** Only for AI steps (1–2). Steps 3–4 work offline.
+- **Disk Space:** ~40 MB plus `./runtime/` if Node is bundled
 
 ---
 
 ## File Structure
 
 ```
-ASAdventurer/
-├── ASAdventurer.exe          ← Main application (double-click to run)
-├── Start AS Adventurer.bat   ← Launcher with console output
-├── launch.sh                 ← Linux launcher
-├── README.md                 ← This file
-├── icon.ico                  ← Application icon
-└── public/                   ← UI files (do not modify)
-    ├── index.html
-    ├── style.css
-    ├── sprite-prep.js
-    ├── video-prep.js
-    ├── model-exporter.js
-    └── assets/
+png-tube-creator/
+├── launch.sh                 ← Linux TUI: setup / update / start
+├── server.js                 ← static files + API proxy (port 3001)
+├── lib/image-provider/       ← OpenAI + OpenRouter adapters
+├── HANDOFF.md                ← fork notes (not the upstream design dump)
+├── public/
+│   ├── index.html
+│   ├── app.js / sprite-prep.js / video-gen.js / video-prep.js
+│   ├── model-exporter.js
+│   └── image-settings.js     ← OpenAI vs OpenRouter UI
+└── Start AS Adventurer.bat   ← leftover Windows launcher
 ```
 
 ---
@@ -193,7 +200,7 @@ ASAdventurer/
 |---------|----------|
 | Browser doesn't open | Navigate manually to `http://localhost:3001` |
 | Port 3001 in use | Close other instances or set `PORT` environment variable |
-| AI generation fails | Check your API key in Settings and ensure you have credits |
+| AI sprite gen fails | Settings: correct provider radio + key; OpenRouter list only includes image+reference models |
 | Video won't load | Try converting to MP4 (H.264) first — some codecs aren't supported |
 | Export looks wrong | Adjust Similarity/Smoothness sliders — start with defaults |
 
@@ -201,6 +208,6 @@ ASAdventurer/
 
 ## Credits
 
-**AS Adventurer Creator** by Angel's Sword Studios
+Upstream: **AS Adventurer Creator** by Angel's Sword Studios.
 
-Built with ❤️ for the VTuber community.
+This hard fork: Linux launcher, OpenRouter image models, personal-use changes. Windows is not a target.
