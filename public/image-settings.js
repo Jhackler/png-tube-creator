@@ -33,7 +33,9 @@
         function paint() {
             var el = document.getElementById('sgStatus');
             if (!el) return;
-            el.innerHTML = '<div class="status-msg error">❌ ' + text + '</div>';
+            el.innerHTML = '<div class="status-msg error">❌ ' +
+                (window.StatusText ? window.StatusText.escapeHtml(text) : text) +
+                '</div>';
         }
         paint();
         setTimeout(paint, 80);

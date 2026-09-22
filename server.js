@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
 const { createProvider } = require('./lib/image-provider');
+const { readVideoApiKey } = require('./public/lib/status-text');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -84,7 +85,7 @@ app.post('/api/generate', handleImageGenerate);
 app.post('/api/edits', handleImageGenerate);
 
 app.post('/api/video/generate', async (req, res) => {
-    const apiKey = req.headers['x-api-key'] || req.query.key;
+    const apiKey = readVideoApiKey(req.headers);
     if (!apiKey) return res.status(401).json({ error: 'No Google API key provided' });
     try {
         const url = `https://generativelanguage.googleapis.com/v1beta/interactions?key=${apiKey}`;
@@ -102,7 +103,7 @@ app.post('/api/video/generate', async (req, res) => {
 });
 
 app.post('/api/video/poll', async (req, res) => {
-    const apiKey = req.headers['x-api-key'] || req.query.key;
+    const apiKey = readVideoApiKey(req.headers);
     if (!apiKey) return res.status(401).json({ error: 'No Google API key provided' });
     try {
         const { operationName } = req.body;
@@ -116,7 +117,7 @@ app.post('/api/video/poll', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '127.0.0.1', () => {
     console.log(`  ⚔️  AS Adventurer — http://localhost:${PORT}`);
     const url = `http://localhost:${PORT}`;
     const start = process.platform === 'win32' ? 'start' :
