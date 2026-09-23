@@ -55,28 +55,83 @@
         if (openaiBlock) openaiBlock.hidden = isOr;
         if (orBlock) orBlock.hidden = !isOr;
         if (badge) badge.textContent = isOr ? 'Active: OpenRouter' : 'Active: OpenAI';
+        var spriteControls = document.getElementById('sgImageModelControls');
+        var spriteNote = document.getElementById('sgImageModelOpenaiNote');
+        var spriteHelp = document.getElementById('sgImageModelHelp');
+        [spriteControls, spriteHelp].forEach(function (el) {
+            if (!el) return;
+            el.classList.toggle('hidden', !isOr);
+        });
+        if (spriteNote) spriteNote.classList.toggle('hidden', isOr);
     }
 
-    function fillModelSelect(models, selected) {
-        var orModel = document.getElementById('settingsOpenRouterModel');
-        if (!orModel) return;
-        orModel.innerHTML = '';
+    function modelSelects() {
+        return Array.prototype.slice.call(document.querySelectorAll('select.image-model-select'));
+    }
+
+    function fillOneSelect(select, models, pick) {
+        select.innerHTML = '';
         if (!models.length) {
             var empty = document.createElement('option');
             empty.value = '';
             empty.textContent = 'No image+reference models found';
-            orModel.appendChild(empty);
+            select.appendChild(empty);
             return;
         }
         models.forEach(function (m) {
             var opt = document.createElement('option');
             opt.value = m.id;
             opt.textContent = m.name && m.name !== m.id ? m.name + ' (' + m.id + ')' : m.id;
-            orModel.appendChild(opt);
+            select.appendChild(opt);
         });
-        var pick = selected && models.some(function (m) { return m.id === selected; }) ? selected : models[0].id;
-        orModel.value = pick;
-        storeSet('openrouter_model', pick);
+        select.value = pick;
+    }
+
+    function fillModelSelect(models, selected) {
+        var selects = modelSelects();
+        if (!selects.length) return;
+        var pick = '';
+        if (models.length) {
+            pick = selected && models.some(function (m) { return m.id === selected; }) ? selected : models[0].id;
+        }
+        selects.forEach(function (select) { fillOneSelect(select, models, pick); });
+        if (pick) storeSet('openrouter_model', pick);
+    }
+
+    function syncModelChoice(id) {
+        if (!id) return;
+        storeSet('openrouter_model', id);
+        modelSelects().forEach(function (select) {
+            if (select.value !== id) select.value = id;
+        });
+    }
+
+    function setStatus(el, kind, html) {
+        if (!el) return;
+        el.innerHTML = '<div class="status-msg ' + kind + '">' + html + '</div>';
+    }
+
+    async function refreshModels(key, statusEl) {
+        if (!key) {
+            setStatus(statusEl, 'error', 'Save an OpenRouter key in Settings first');
+            return;
+        }
+        setStatus(statusEl, 'info', '<span class="spinner"></span> Loading image models...');
+        try {
+            var resp = await providerFetch('/api/image/models', { method: 'GET', key: key, provider: 'openrouter' });
+            var data = await resp.json().catch(function () { return {}; });
+            if (!resp.ok) {
+                setStatus(statusEl, 'error', '❌ ' + ((data.error && data.error.message) || ('HTTP ' + resp.status)));
+                return;
+            }
+            var models = Array.isArray(data.models) ? data.models : [];
+            storeSet('openrouter_api_key', key);
+            storeSet('openrouter_models_cache', JSON.stringify(models));
+            fillModelSelect(models, storeGet('openrouter_model'));
+            setStatus(statusEl, 'success', '✅ ' + models.length + ' model(s) that support image generation and references');
+        } catch (err) {
+            setStatus(statusEl, 'error', '❌ ' + err.message + '. Is the server running?');
+        }
     }
 
     function providerFetch(path, opts) {
@@ -118,7 +173,7 @@
             '<button class="btn btn-sm btn-secondary" id="settingsOpenRouterSave" type="button">Save</button>' +
             '<button class="btn btn-sm btn-accent" id="settingsOpenRouterTest" type="button">Test</button></div>' +
             '<div class="api-key-row" style="margin-top:0.75rem">' +
-            '<select id="settingsOpenRouterModel" style="flex:1"><option value="">Refresh models to load the list</option></select>' +
+            '<select id="settingsOpenRouterModel" class="image-model-select" style="flex:1"><option value="">Refresh models to load the list</option></select>' +
             '<button class="btn btn-sm btn-secondary" id="settingsOpenRouterRefresh" type="button">Refresh models</button></div>' +
             '<div id="settingsOpenRouterStatus"></div></div>';
         var openaiBlock = wrap.querySelector('#imageOpenaiBlock');
@@ -182,22 +237,40 @@
                 else orStatus.innerHTML = '<div class="status-msg error">❌ ' + ((data.error && data.error.message) || ('HTTP ' + resp.status)) + '</div>';
             } catch (err) { orStatus.innerHTML = '<div class="status-msg error">❌ ' + err.message + '. Is the server running?</div>'; }
         });
-        if (orRefresh && orInput) orRefresh.addEventListener('click', async function () {
-            var key = orInput.value.trim();
-            if (!key) { orStatus.innerHTML = '<div class="status-msg error">Enter an API key first</div>'; return; }
-            orStatus.innerHTML = '<div class="status-msg info"><span class="spinner"></span> Loading image models...</div>';
-            try {
-                var resp = await providerFetch('/api/image/models', { method: 'GET', key: key, provider: 'openrouter' });
-                var data = await resp.json().catch(function () { return {}; });
-                if (!resp.ok) { orStatus.innerHTML = '<div class="status-msg error">❌ ' + ((data.error && data.error.message) || ('HTTP ' + resp.status)) + '</div>'; return; }
-                var models = Array.isArray(data.models) ? data.models : [];
-                storeSet('openrouter_api_key', key);
-                storeSet('openrouter_models_cache', JSON.stringify(models));
-                fillModelSelect(models, storeGet('openrouter_model'));
-                orStatus.innerHTML = '<div class="status-msg success">✅ ' + models.length + ' model(s) that support image generation and references</div>';
-            } catch (err) { orStatus.innerHTML = '<div class="status-msg error">❌ ' + err.message + '. Is the server running?</div>'; }
-        });
-        if (orModel) orModel.addEventListener('change', function () { if (orModel.value) storeSet('openrouter_model', orModel.value); });
+        if (orRefresh && orInput && !orRefresh.dataset.wired) {
+            orRefresh.dataset.wired = '1';
+            orRefresh.addEventListener('click', function () {
+                refreshModels(orInput.value.trim(), orStatus);
+            });
+        }
+        if (orModel && !orModel.dataset.wired) {
+            orModel.dataset.wired = '1';
+            orModel.addEventListener('change', function () { syncModelChoice(orModel.value); });
+        }
+    }
+
+    function loadCachedModels() {
+        try {
+            var cached = JSON.parse(storeGet('openrouter_models_cache') || '[]');
+            if (Array.isArray(cached) && cached.length) fillModelSelect(cached, storeGet('openrouter_model'));
+        } catch (e) {}
+    }
+
+    function wireSpriteModel() {
+        var spriteModel = document.getElementById('sgImageModel');
+        var spriteRefresh = document.getElementById('sgImageModelRefresh');
+        if (spriteModel && !spriteModel.dataset.wired) {
+            spriteModel.dataset.wired = '1';
+            spriteModel.addEventListener('change', function () { syncModelChoice(spriteModel.value); });
+        }
+        if (spriteRefresh && !spriteRefresh.dataset.wired) {
+            spriteRefresh.dataset.wired = '1';
+            spriteRefresh.addEventListener('click', function () {
+                var typed = document.getElementById('settingsOpenRouterKey');
+                var key = (typed && typed.value.trim()) || storeGet('openrouter_api_key') || '';
+                refreshModels(key, document.getElementById('sgImageModelStatus'));
+            });
+        }
     }
 
     function installGenerateHooks() {
@@ -215,7 +288,7 @@
             if (path === '/api/generate' || path === '/api/edits' || path === '/api/image/generate') {
                 var settings = getImageSettings();
                 if (settings.provider === 'openrouter' && !settings.model) {
-                    var miss = 'Pick an OpenRouter image model in Settings (Refresh models).';
+                    var miss = 'Pick an OpenRouter image model above, or refresh the list.';
                     showGenError(miss);
                     return Promise.reject(new Error(miss));
                 }
@@ -258,6 +331,9 @@
     function start() {
         installGenerateHooks();
         if (injectSettingsCard()) wireSettings();
+        loadCachedModels();
+        wireSpriteModel();
+        applyProviderUI(getImageSettings().provider);
     }
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);

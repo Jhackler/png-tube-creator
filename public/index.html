@@ -295,6 +295,19 @@
                                 </div>
                             </div>
 
+                            <div class="form-row" id="sgImageModelRow">
+                                <label for="sgImageModel">Image model</label>
+                                <p class="help-text" id="sgImageModelHelp">Same list as Settings. Switch OpenAI / OpenRouter there.</p>
+                                <div id="sgImageModelControls">
+                                    <select id="sgImageModel" class="image-model-select" title="OpenRouter image model. Changing this also updates Settings.">
+                                        <option value="">Refresh models to load the list</option>
+                                    </select>
+                                    <button class="btn btn-sm btn-secondary mt-1" id="sgImageModelRefresh" type="button" title="Reload image models that accept references">Refresh models</button>
+                                    <div id="sgImageModelStatus"></div>
+                                </div>
+                                <p class="help-text hidden" id="sgImageModelOpenaiNote">Using GPT Image 2. Change the provider in Settings to pick an OpenRouter model.</p>
+                            </div>
+
                             <div class="form-row">
                                 <label>Simultaneous Generations</label>
                                 <div class="gen-count" id="sgGenCount">
@@ -305,7 +318,7 @@
                                 </div>
                             </div>
 
-                            <button class="btn-handoff mt-2" id="sgGenerateBtn" title="Generate sprite(s) using GPT Image 2">
+                            <button class="btn-handoff mt-2" id="sgGenerateBtn" title="Generate sprite(s) with the image model selected above">
                                 ✨ Generate Sprite
                             </button>
 
