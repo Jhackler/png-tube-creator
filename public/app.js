@@ -592,6 +592,19 @@ async function ensureActiveCharacter() {
     if (!window.ProjectStore || !window.ProjectStore.isOpen()) return null;
     const name = currentSpriteName();
     if (!name) return null;
+    const layoutApi = window.ProjectLayout;
+    const folderName = layoutApi && layoutApi.characterFolderName
+        ? layoutApi.characterFolderName(name)
+        : name;
+    let dirs = [];
+    if (window.ProjectStore.listDirs) {
+        try { dirs = await window.ProjectStore.listDirs(); } catch (err) { dirs = []; }
+    }
+    if (layoutApi && layoutApi.characterExists && layoutApi.characterExists(dirs, name)) {
+        applyCharacterName(folderName);
+        if (window.showProjectFolder) window.showProjectFolder(folderName);
+        return folderName;
+    }
     const folder = await window.ProjectStore.createCharacter(name);
     applyCharacterName(folder);
     if (window.showProjectFolder) window.showProjectFolder(folder);

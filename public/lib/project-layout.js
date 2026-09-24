@@ -67,6 +67,11 @@ function shouldBrowserDownload(projectOpen) {
   return !projectOpen;
 }
 
+function characterExists(dirs, name) {
+  if (!Array.isArray(dirs)) return false;
+  return dirs.indexOf(characterFolderName(name)) !== -1;
+}
+
 const api = {
   OVERLAY_SLOTS,
   EXTRA_SLOTS,
@@ -76,6 +81,7 @@ const api = {
   canonicalExport,
   projectHttpError,
   shouldBrowserDownload,
+  characterExists,
 };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = api;

@@ -12,7 +12,18 @@ const {
   listProjectDirs,
   openProjectRoot,
 } = require('../lib/project-write');
-const { projectHttpError, shouldBrowserDownload } = require('../public/lib/project-layout');
+const { projectHttpError, shouldBrowserDownload, characterExists } = require('../public/lib/project-layout');
+
+test('open rejects a missing path and a file', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'as-project-'));
+  const missing = path.join(root, 'nope');
+  const file = path.join(root, 'notes.txt');
+  fs.writeFileSync(file, 'x');
+  assert.throws(() => openProjectRoot(missing), /does not exist/);
+  assert.throws(() => openProjectRoot(file), /not a folder/);
+  assert.throws(() => listProjectDirs('relative/path'), /absolute path/);
+  fs.rmSync(root, { recursive: true, force: true });
+});
 
 test('opening a projects folder does not create a character', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'as-project-'));
@@ -52,6 +63,12 @@ test('permission errors are a sentence, not a code', () => {
 
 test('a missing save route tells you to restart launch.sh', () => {
   assert.match(projectHttpError(404, ''), /launch\.sh/);
+});
+
+test('an existing folder is not treated as a new character', () => {
+  assert.equal(characterExists(['Mira_Vale', 'Ada'], 'Mira Vale'), true);
+  assert.equal(characterExists(['Ada'], 'Mira Vale'), false);
+  assert.equal(characterExists(null, 'Mira'), false);
 });
 
 test('an open project does not fall through to the browser download', () => {
