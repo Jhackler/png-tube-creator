@@ -8,16 +8,30 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Cinzel+Decorative:wght@400;700&family=Outfit:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=10">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚔️</text></svg>">
 </head>
 <body>
 
 <div class="app-container">
 
-    <!-- ═══════════════════════════════════════
-         HEADER
-         ═══════════════════════════════════════ -->
+    <aside class="project-column" id="projectBar">
+        <h2 class="project-heading">Projects</h2>
+        <label class="project-label" for="projectPathInput">Folder</label>
+        <input type="text" id="projectPathInput" class="project-path" placeholder="/mnt/projects1/Vtubing/projects" title="Absolute path to the folder that holds one directory per character.">
+        <div class="project-actions">
+            <button type="button" class="btn btn-sm btn-secondary" id="projectPathBtn">Use path</button>
+            <button type="button" class="btn btn-sm btn-secondary" id="projectPickBtn" title="Brave blocks this. Use the path field.">Choose folder</button>
+        </div>
+        <p id="projectHint" class="project-hint">Use path opens this folder. Create makes a new character. Click a name to select it.</p>
+        <label class="project-subheading" for="projectNewName">New character</label>
+        <input type="text" id="projectNewName" class="project-path" placeholder="Character name" title="Creates a folder in the projects path and fills the sprite name.">
+        <button type="button" class="btn btn-sm btn-primary" id="projectCreateBtn">Create</button>
+        <ul id="projectList" class="project-list"></ul>
+    </aside>
+
+    <div class="app-main">
+
     <header class="app-header">
         <div class="brand">
             <img src="assets/Angelsword-Logo-white_25pct.webp" alt="Angel's Sword Studios" class="brand-logo">
@@ -295,6 +309,19 @@
                                 </div>
                             </div>
 
+                            <div class="form-row" id="sgImageModelRow">
+                                <label for="sgImageModel">Image model</label>
+                                <p class="help-text" id="sgImageModelHelp">Same list as Settings. Switch OpenAI / OpenRouter there.</p>
+                                <div id="sgImageModelControls">
+                                    <select id="sgImageModel" class="image-model-select" title="OpenRouter image model. Changing this also updates Settings.">
+                                        <option value="">Refresh models to load the list</option>
+                                    </select>
+                                    <button class="btn btn-sm btn-secondary mt-1" id="sgImageModelRefresh" type="button" title="Reload image models that accept references">Refresh models</button>
+                                    <div id="sgImageModelStatus"></div>
+                                </div>
+                                <p class="help-text hidden" id="sgImageModelOpenaiNote">Using GPT Image 2. Change the provider in Settings to pick an OpenRouter model.</p>
+                            </div>
+
                             <div class="form-row">
                                 <label>Simultaneous Generations</label>
                                 <div class="gen-count" id="sgGenCount">
@@ -305,7 +332,7 @@
                                 </div>
                             </div>
 
-                            <button class="btn-handoff mt-2" id="sgGenerateBtn" title="Generate sprite(s) using GPT Image 2">
+                            <button class="btn-handoff mt-2" id="sgGenerateBtn" title="Generate sprite(s) with the image model selected above">
                                 ✨ Generate Sprite
                             </button>
 
@@ -896,14 +923,22 @@
                             <div class="form-row">
                                 <label>Quick Filename</label>
                                 <div class="filename-presets" id="exFilenamePresets">
-                                    <button class="filename-preset-btn" data-preset="Neutral_Idle" title="Set filename to {name}_Neutral_Idle">Neutral Idle</button>
-                                    <button class="filename-preset-btn" data-preset="Intro" title="Set filename to {name}_Intro">Intro</button>
-                                    <button class="filename-preset-btn" data-preset="Outro" title="Set filename to {name}_Outro">Outro</button>
-                                    <button class="filename-preset-btn" data-preset="Neutral_Speaking" title="Set filename to {name}_Neutral_Speaking">Neutral Speaking</button>
-                                    <button class="filename-preset-btn" data-preset="Animation" title="Set filename to {name}_Animation">Animation</button>
+                                    <button class="filename-preset-btn" data-preset="neutral_idle" title="Overlay file: Character/neutral_idle">Neutral Idle</button>
+                                    <button class="filename-preset-btn" data-preset="neutral_speaking" title="Overlay file: Character/neutral_speaking">Neutral Speaking</button>
+                                    <button class="filename-preset-btn" data-preset="happy_idle" title="Overlay file: Character/happy_idle">Happy Idle</button>
+                                    <button class="filename-preset-btn" data-preset="happy_speaking" title="Overlay file: Character/happy_speaking">Happy Speaking</button>
+                                    <button class="filename-preset-btn" data-preset="sad_idle" title="Overlay file: Character/sad_idle">Sad Idle</button>
+                                    <button class="filename-preset-btn" data-preset="sad_speaking" title="Overlay file: Character/sad_speaking">Sad Speaking</button>
+                                    <button class="filename-preset-btn" data-preset="surprised_idle" title="Overlay file: Character/surprised_idle">Surprised Idle</button>
+                                    <button class="filename-preset-btn" data-preset="surprised_speaking" title="Overlay file: Character/surprised_speaking">Surprised Speaking</button>
+                                    <button class="filename-preset-btn" data-preset="typing" title="Overlay file: Character/typing">Typing</button>
+                                    <button class="filename-preset-btn" data-preset="eyes_closed" title="Overlay file: Character/eyes_closed">Eyes Closed</button>
+                                    <button class="filename-preset-btn" data-preset="intro" title="Extra file, not an overlay expression">Intro</button>
+                                    <button class="filename-preset-btn" data-preset="outro" title="Extra file, not an overlay expression">Outro</button>
+                                    <button class="filename-preset-btn" data-preset="animation" title="Extra file, saved under extras/">Animation</button>
                                     <button class="filename-preset-btn" data-preset="custom" title="Enter a custom filename">Custom</button>
                                 </div>
-                                <input type="text" id="exFilename" placeholder="output" title="Output filename (without extension)" class="mt-1">
+                                <input type="text" id="exFilename" placeholder="neutral_idle" title="With a project open, overlay names save as Character/neutral_idle.webm" class="mt-1">
                             </div>
 
                             <!-- Estimate -->
@@ -1029,16 +1064,38 @@
 
     </div><!-- /tab-content -->
 
+    </div><!-- /app-main -->
+
 </div><!-- /app-container -->
+
+<div class="modal-overlay hidden" id="savePrompt">
+    <div class="modal-panel save-prompt-card">
+        <h3 id="savePromptTitle">Save before continuing?</h3>
+        <p id="savePromptText"></p>
+        <div class="project-actions">
+            <button type="button" class="btn btn-sm btn-primary" id="savePromptSave">Save a copy</button>
+            <button type="button" class="btn btn-sm btn-secondary" id="savePromptSkip">Continue without saving</button>
+            <button type="button" class="btn btn-sm btn-secondary" id="savePromptCancel">Stay here</button>
+        </div>
+    </div>
+</div>
 
 <!-- Toast Container -->
 <div class="toast-container" id="toastContainer"></div>
 
 <!-- Scripts -->
-<script src="app.js"></script>
-<script src="sprite-prep.js"></script>
-<script src="video-gen.js"></script>
+<script src="lib/project-layout.js?v=10"></script>
+<script src="app.js?v=10"></script>
+<script src="sprite-prep.js?v=9"></script>
+<script src="video-gen.js?v=8"></script>
 <script src="video-prep.js"></script>
+<script src="lib/export-names.js"></script>
+<script src="lib/project-store.js?v=9"></script>
+<script src="lib/status-text.js"></script>
+<script src="lib/color-quantizer.js"></script>
+<script src="lib/gif-encoder.js"></script>
+<script src="lib/gif-decoder.js"></script>
+<script src="lib/chroma-key.js"></script>
 <script src="model-exporter.js"></script>
 
 </body>

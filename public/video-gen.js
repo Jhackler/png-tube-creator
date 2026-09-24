@@ -382,10 +382,20 @@
                 }
             } else if (btn.dataset.action === 'download') {
                 if (generatedVideos[idx]?.blob) {
-                    const a = document.createElement('a');
-                    a.href = generatedVideos[idx].url;
-                    a.download = `${window.ASAdventurer.characterName || 'video'}_gen_${idx + 1}.mp4`;
-                    a.click();
+                    const projectOpen = window.ProjectStore && window.ProjectStore.isOpen();
+                    const filename = projectOpen
+                        ? `gen_${idx + 1}.mp4`
+                        : `${window.ASAdventurer.characterName || 'video'}_gen_${idx + 1}.mp4`;
+                    const blob = generatedVideos[idx].blob;
+                    const href = generatedVideos[idx].url;
+                    if (projectOpen) {
+                        window.ProjectStore.saveAndDownload({ bucket: 'video', filename, blob, href });
+                    } else {
+                        const a = document.createElement('a');
+                        a.href = href;
+                        a.download = filename;
+                        a.click();
+                    }
                 }
             } else if (btn.dataset.action === 'select') {
                 if (selectedVideos.has(idx)) {
@@ -420,6 +430,15 @@
         if (video) {
             window.ASAdventurer.handoff.videoBlob = video.blob;
             window.ASAdventurer.handoff.videoUrl = video.url;
+            if (window.ProjectStore && window.ProjectStore.isOpen() && video.blob) {
+                const saveVideo = () => window.ProjectStore.saveBlob('video', 'source.mp4', video.blob);
+                const ready = window.ensureActiveCharacter
+                    ? window.ensureActiveCharacter()
+                    : Promise.resolve();
+                ready.then(saveVideo).catch((err) => {
+                    showToast(err.message || 'Project save failed', 'error');
+                });
+            }
             showToast('Video sent to Video Preparation', 'success');
             switchTab('tab-video-prep');
         }

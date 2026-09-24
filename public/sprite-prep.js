@@ -262,23 +262,51 @@
     function downloadPNG() {
         const canvas = document.getElementById('spCanvas');
         canvas.toBlob(blob => {
+            const projectOpen = window.ProjectStore && window.ProjectStore.isOpen();
             const name = window.ASAdventurer.characterName || spriteFileName || 'sprite';
+            const filename = projectOpen ? 'chroma.png' : `${name}_1280x720.png`;
+            const href = URL.createObjectURL(blob);
+            if (projectOpen) {
+                window.ProjectStore.saveAndDownload({ bucket: 'sprite', filename, blob, href });
+                return;
+            }
             const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `${name}_1280x720.png`;
+            a.href = href;
+            a.download = filename;
             a.click();
-            URL.revokeObjectURL(a.href);
+            URL.revokeObjectURL(href);
         }, 'image/png');
     }
 
     function handoffToVideoGen() {
         const canvas = document.getElementById('spCanvas');
         canvas.toBlob(async (blob) => {
+            const projectOpen = !!(window.ProjectStore && window.ProjectStore.isOpen());
+            const choice = window.askSaveCopy
+                ? await window.askSaveCopy({ projectOpen })
+                : 'continue';
+            if (choice === 'stay') return;
+            if (projectOpen && window.ensureActiveCharacter) {
+                try {
+                    await window.ensureActiveCharacter();
+                } catch (err) {
+                    showToast(err.message || 'Could not create the character folder', 'error');
+                    return;
+                }
+            }
+            if (choice === 'save') {
+                const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..+/, '').replace('T', '_');
+                try {
+                    await window.ProjectStore.saveBlob('sprite', `sent_${stamp}.png`, blob);
+                } catch (err) {
+                    showToast(err.message || 'Project save failed', 'error');
+                    return;
+                }
+            }
             window.ASAdventurer.handoff.spriteBlob = blob;
             window.ASAdventurer.handoff.spriteCanvas = canvas;
             const b64 = await blobToBase64(blob);
             window.ASAdventurer.handoff.spriteBase64 = b64;
-            // Save character name
             localStorage.setItem('as_char_name', window.ASAdventurer.characterName || '');
             showToast('Sprite sent to Generate Video', 'success');
             switchTab('tab-video-gen');
@@ -478,10 +506,20 @@
             const dataUrl = genResults[idx];
 
             if (btn.dataset.action === 'download') {
-                const a = document.createElement('a');
-                a.href = dataUrl;
-                a.download = `${window.ASAdventurer.characterName || 'sprite'}_gen_${idx + 1}.png`;
-                a.click();
+                const projectOpen = window.ProjectStore && window.ProjectStore.isOpen();
+                const filename = projectOpen
+                    ? `gen_${idx + 1}.png`
+                    : `${window.ASAdventurer.characterName || 'sprite'}_gen_${idx + 1}.png`;
+                fetch(dataUrl).then(r => r.blob()).then(blob => {
+                    if (projectOpen) {
+                        window.ProjectStore.saveAndDownload({ bucket: 'sprite', filename, blob, href: dataUrl });
+                    } else {
+                        const a = document.createElement('a');
+                        a.href = dataUrl;
+                        a.download = filename;
+                        a.click();
+                    }
+                });
             } else if (btn.dataset.action === 'select') {
                 grid.querySelectorAll('.result-card').forEach(c => c.classList.remove('selected'));
                 btn.closest('.result-card').classList.add('selected');
@@ -513,11 +551,21 @@
         }
 
         const blob = base64ToBlob(selectedResult);
-        window.ASAdventurer.handoff.spriteBlob = blob;
-        window.ASAdventurer.handoff.spriteBase64 = selectedResult;
-        localStorage.setItem('as_char_name', window.ASAdventurer.characterName || '');
-        showToast('Sprite sent to Generate Video', 'success');
-        switchTab('tab-video-gen');
+        const send = async () => {
+            if (window.ProjectStore && window.ProjectStore.isOpen() && window.ensureActiveCharacter) {
+                try {
+                    await window.ensureActiveCharacter();
+                } catch (err) {
+                    showToast(err.message || 'Could not create the character folder', 'error');
+                }
+            }
+            window.ASAdventurer.handoff.spriteBlob = blob;
+            window.ASAdventurer.handoff.spriteBase64 = selectedResult;
+            localStorage.setItem('as_char_name', window.ASAdventurer.characterName || '');
+            showToast('Sprite sent to Generate Video', 'success');
+            switchTab('tab-video-gen');
+        };
+        send();
     }
 
     function genHandoffToManual() {

@@ -579,6 +579,220 @@ function initCharNameSync() {
     }
 }
 
+function currentSpriteName() {
+    const fromField = (document.getElementById('sgCharName')?.value || document.getElementById('spCharName')?.value || '').trim();
+    if (fromField) {
+        window.ASAdventurer.characterName = fromField;
+        return fromField;
+    }
+    return (window.ASAdventurer.characterName || '').trim();
+}
+
+async function ensureActiveCharacter() {
+    if (!window.ProjectStore || !window.ProjectStore.isOpen()) return null;
+    const name = currentSpriteName();
+    if (!name) return null;
+    const layoutApi = window.ProjectLayout;
+    const folderName = layoutApi && layoutApi.characterFolderName
+        ? layoutApi.characterFolderName(name)
+        : name;
+    let dirs = [];
+    if (window.ProjectStore.listDirs) {
+        try { dirs = await window.ProjectStore.listDirs(); } catch (err) { dirs = []; }
+    }
+    if (layoutApi && layoutApi.characterExists && layoutApi.characterExists(dirs, name)) {
+        applyCharacterName(folderName);
+        if (window.showProjectFolder) window.showProjectFolder(folderName);
+        return folderName;
+    }
+    const folder = await window.ProjectStore.createCharacter(name);
+    applyCharacterName(folder);
+    if (window.showProjectFolder) window.showProjectFolder(folder);
+    if (window.refreshProjectList) await window.refreshProjectList();
+    return folder;
+}
+window.ensureActiveCharacter = ensureActiveCharacter;
+
+function applyCharacterName(name) {
+    window.ASAdventurer.characterName = name;
+    localStorage.setItem('as_char_name', name);
+    ['sgCharName', 'spCharName'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.value = name;
+    });
+}
+
+function askSaveCopy({ projectOpen }) {
+    const overlay = document.getElementById('savePrompt');
+    const text = document.getElementById('savePromptText');
+    const saveBtn = document.getElementById('savePromptSave');
+    const skipBtn = document.getElementById('savePromptSkip');
+    const cancelBtn = document.getElementById('savePromptCancel');
+    if (!overlay) return Promise.resolve('continue');
+    text.textContent = projectOpen
+        ? 'Save a new copy into this character folder before continuing? Earlier sprites stay where they are. The download button on this page is unchanged.'
+        : 'No project folder is open, so nothing will be written. You can still use the download button on this page.';
+    saveBtn.classList.toggle('hidden', !projectOpen);
+    overlay.classList.remove('hidden');
+    return new Promise((resolve) => {
+        function finish(choice) {
+            overlay.classList.add('hidden');
+            saveBtn.onclick = null;
+            skipBtn.onclick = null;
+            cancelBtn.onclick = null;
+            resolve(choice);
+        }
+        saveBtn.onclick = () => finish('save');
+        skipBtn.onclick = () => finish('continue');
+        cancelBtn.onclick = () => finish('stay');
+    });
+}
+window.askSaveCopy = askSaveCopy;
+
+function initProjectBar() {
+    const hintEl = document.getElementById('projectHint');
+    const pickBtn = document.getElementById('projectPickBtn');
+    const pathBtn = document.getElementById('projectPathBtn');
+    const pathInput = document.getElementById('projectPathInput');
+    const listEl = document.getElementById('projectList');
+    const newNameInput = document.getElementById('projectNewName');
+    const createBtn = document.getElementById('projectCreateBtn');
+    if (!window.ProjectStore) return;
+
+    function paint() {
+        const open = window.ProjectStore.isOpen();
+        const status = window.ProjectStore.status ? window.ProjectStore.status() : { message: '', error: false };
+        if (!hintEl) return;
+        hintEl.classList.toggle('project-error', !!status.error);
+        if (status.message) {
+            hintEl.textContent = status.message;
+            return;
+        }
+        hintEl.textContent = open
+            ? 'Create a character, or click one below. That fills the sprite name.'
+            : 'Paste the projects folder and click Use path. That only opens the folder.';
+    }
+
+    function markSelected(dirName) {
+        if (!listEl) return;
+        listEl.querySelectorAll('button').forEach((btn) => {
+            btn.classList.toggle('active', btn.dataset.dir === dirName);
+        });
+    }
+
+    let listToken = 0;
+
+    function showFolder(dirName) {
+        if (!listEl || !dirName) return;
+        const empty = listEl.querySelector('.project-empty');
+        if (empty) empty.remove();
+        let btn = listEl.querySelector('button[data-dir="' + CSS.escape(dirName) + '"]');
+        if (!btn) {
+            const li = document.createElement('li');
+            btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'project-item';
+            btn.dataset.dir = dirName;
+            btn.textContent = dirName;
+            btn.addEventListener('click', () => {
+                applyCharacterName(dirName);
+                markSelected(dirName);
+                if (window.ProjectStore.setStatus) {
+                    window.ProjectStore.setStatus('Character name set to ' + dirName, false);
+                }
+            });
+            li.appendChild(btn);
+            listEl.appendChild(li);
+        }
+        markSelected(dirName);
+    }
+
+    async function refreshList() {
+        if (!listEl || !window.ProjectStore.listDirs || !window.ProjectStore.isOpen()) {
+            if (listEl) listEl.innerHTML = '';
+            return;
+        }
+        const token = ++listToken;
+        try {
+            const dirs = await window.ProjectStore.listDirs();
+            if (token !== listToken) return;
+            listEl.innerHTML = '';
+            if (!dirs.length) {
+                const empty = document.createElement('li');
+                empty.className = 'project-empty';
+                empty.textContent = 'No character folders yet.';
+                listEl.appendChild(empty);
+                return;
+            }
+            dirs.forEach((dir) => showFolder(dir));
+            markSelected(window.ASAdventurer.characterName || '');
+        } catch (err) {
+            if (token !== listToken) return;
+            showBarError(err);
+        }
+    }
+
+    window.refreshProjectList = refreshList;
+    window.showProjectFolder = showFolder;
+
+    function showBarError(err) {
+        const message = (err && err.message) || 'Could not set the project folder';
+        if (window.ProjectStore.setStatus) window.ProjectStore.setStatus(message, true);
+        paint();
+    }
+
+    if (typeof window.showDirectoryPicker !== 'function') {
+        pickBtn.textContent = 'Picker blocked';
+        pickBtn.title = 'Brave blocks the folder picker. Paste a path and click Use path.';
+    }
+
+    pickBtn.addEventListener('click', async () => {
+        try {
+            await window.ProjectStore.pickFolder();
+            paint();
+        } catch (err) {
+            if (err && err.name === 'AbortError') return;
+            showBarError(err);
+        }
+    });
+
+    pathBtn.addEventListener('click', async () => {
+        try {
+            await window.ProjectStore.usePath(pathInput.value);
+            paint();
+            await refreshList();
+        } catch (err) {
+            showBarError(err);
+        }
+    });
+
+    if (createBtn) {
+        createBtn.addEventListener('click', async () => {
+            try {
+                const folder = await window.ProjectStore.createCharacter(newNameInput && newNameInput.value);
+                applyCharacterName(folder);
+                if (newNameInput) newNameInput.value = '';
+                paint();
+                await refreshList();
+            } catch (err) {
+                showBarError(err);
+            }
+        });
+    }
+
+    document.addEventListener('project-changed', () => {
+        paint();
+        refreshList();
+    });
+    document.addEventListener('project-status', paint);
+    window.ProjectStore.restore().then(() => {
+        if (window.ProjectStore.rootPath && pathInput) pathInput.value = window.ProjectStore.rootPath();
+        paint();
+        return refreshList();
+    }).catch(showBarError);
+    paint();
+}
+
 // ============================================
 // INIT
 // ============================================
@@ -587,5 +801,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initSettings();
     initKeyboard();
     initCharNameSync();
+    initProjectBar();
     console.log('⚔️ AS Adventurer initialized');
 });

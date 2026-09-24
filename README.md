@@ -43,6 +43,36 @@ It uses a system Node.js v18+ if you already have one. Otherwise it downloads an
 
 ---
 
+## Projects
+
+Left column. This is how files land in a folder instead of a one-off browser download.
+
+1. Paste an absolute path and click **Use path**. That only opens the folder. It does not create a character. Brave blocks the folder picker, so the path field is the real control.
+2. **New character** makes a subdirectory and fills the Sprite Prep name. Clicking a name in the list does the same.
+3. Typing a name in Sprite Prep and sending the sprite or video on also creates that folder if it is missing. An existing folder is not rewritten.
+4. When a project is open and the write succeeds, there is no download dialog.
+
+```
+/mnt/projects1/Vtubing/projects/
+  Mira_Vale/
+    ready.txt                 ← write check, overlay ignores it
+    sprite/sent_YYYYMMDD_HHMMSS.png
+    sprite/gen_1.png
+    video/source.mp4          ← replaced if you send the video on again
+    video/gen_1.mp4
+    neutral_idle.webm
+    happy_speaking.webm
+    extras/intro.webm
+```
+
+Spaces in a name become underscores (`Mira Vale` → `Mira_Vale`). Copy that character folder into the overlay's `public/assets/` and the model name is the folder.
+
+Sending a sprite on asks before writing a new `sprite/sent_….png`. Skipping that save still creates the character folder. Overlay clips use the selector names (`neutral_idle.webm`), not `mira_Neutral_Idle.webm`. Intro, outro, and animation go in `extras/` because the overlay does not load those as expression states.
+
+Quit the app and start `launch.sh` again after pulling this branch. A page refresh does not load new save routes.
+
+---
+
 ## The Pipeline
 
 ### ① Sprite Prep  🎨
@@ -56,7 +86,7 @@ It uses a system Node.js v18+ if you already have one. Otherwise it downloads an
 **Key features:**
 - Pick your chroma key color (magenta, green, blue, or custom)
 - Adjust canvas size and sprite positioning
-- Download the result as a PNG ready for animation
+- Download the result as a PNG, or save it into the open project (see [Projects](#projects))
 
 **Output:** A character sprite on a solid-color background (e.g., magenta), ready for Step 2.
 
@@ -122,7 +152,7 @@ It uses a system Node.js v18+ if you already have one. Otherwise it downloads an
 - Crop tool to trim the output
 - Real-time preview with checkerboard transparency
 
-**Output:** A transparent WebM or GIF file — ready to use in streaming overlays like AS Reactive Overlay, OBS, or any PNGtuber app.
+**Output:** A transparent WebM or GIF. With a project open, overlay presets save as `Character/neutral_idle.webm` (and the other selector names). Without a project, the browser download still prefixes the character name so files in Downloads do not collide.
 
 ---
 
@@ -130,7 +160,7 @@ It uses a system Node.js v18+ if you already have one. Otherwise it downloads an
 
 Access the Settings tab to configure:
 
-- **Image API** — OpenAI (`gpt-image-2`) or OpenRouter (refreshable catalog, image+reference models only)
+- **Image API** — OpenAI (`gpt-image-2`) or OpenRouter. The same model list is on the Sprite Prep generate page. Changing either select updates the other. Provider (OpenAI vs OpenRouter) still switches only in Settings.
 - **Matching API key** — OpenAI or OpenRouter, depending on the radio
 - **Google Gemini API key** — Required for AI video generation (Step 2)
 
@@ -144,13 +174,12 @@ API keys stay in the browser's `localStorage`. They are only sent through the lo
 
 The assets you export are meant for the companion overlay ([Jhackler/Ai-png-tuber-overlay](https://github.com/Jhackler/Ai-png-tuber-overlay)):
 
-1. Export transparent WebM (Adventurer mode) using the filename presets. Overlay **state** files are named like this (only `neutral_idle` is required):
+1. Export transparent WebM (Adventurer mode). With a project open, the filename buttons are the overlay names. Only `neutral_idle` is required:
    - `neutral_idle.webm` / `neutral_speaking.webm`
    - `happy_idle.webm` / `happy_speaking.webm` (same for `sad`, `surprised`)
    - `eyes_closed.webm`, `typing.webm`
-   Creator also has Idle / Intro / Outro / Speaking / Animation presets (`{name}_idle`, `{name}_intro`, …) — those are for emotes/intros, not the overlay expression keys.
-2. Drop files into the overlay repo's `public/assets/` or `public/assets/<ModelName>/`.
-3. Overlay loads matching filenames as expression states.
+2. Copy the character folder (`Project/Mira_Vale/`) into the overlay repo's `public/assets/`. Extra files (`sprite/`, `video/`, `ready.txt`, `extras/`) are ignored.
+3. The overlay loads matching filenames as expression states. The model name is the folder name.
 
 The exported WebM files also work with any OBS browser source, PNGtuber app, or other streaming tools that support transparent video.
 
@@ -160,8 +189,8 @@ The exported WebM files also work with any OBS browser source, PNGtuber app, or 
 
 - **OS:** Linux (Debian/Fedora/Arch and most glibc distros). `launch.sh` is the supported entry point.
 - **Node:** v18+ on PATH, or a portable runtime downloaded into `./runtime/` (no root)
-- **Browser:** Chrome, Firefox, or similar
-- **Internet:** Only for AI steps (1–2). Steps 3–4 work offline.
+- **Browser:** Chrome, Firefox, or similar. Brave blocks the folder picker; use the path field.
+- **Internet:** Only for AI steps (1–2). Steps 3–4 and project saves work offline once the local server is running.
 - **Disk Space:** ~40 MB plus `./runtime/` if Node is bundled
 
 ---
@@ -173,20 +202,23 @@ png-tube-creator/
 ├── launch.sh                 ← Linux TUI: setup / update / start
 ├── server.js                 ← static files + API proxy (port 3001)
 ├── lib/image-provider/       ← OpenAI + OpenRouter adapters
+├── lib/project-paths.js      ← character folder + overlay filename rules
+├── lib/project-write.js      ← open / create / list / save on disk
 ├── HANDOFF.md                ← fork notes (not the upstream design dump)
 ├── public/
 │   ├── index.html
 │   ├── app.js / sprite-prep.js / video-gen.js / video-prep.js
 │   ├── model-exporter.js
-│   └── image-settings.js     ← OpenAI vs OpenRouter UI
-└── Start AS Adventurer.bat   ← leftover Windows launcher
+│   ├── image-settings.js     ← OpenAI vs OpenRouter UI
+│   └── lib/project-store.js  ← browser side of the projects column
+└── test/                     ← node:test for names, paths, image helpers
 ```
 
 ---
 
 ## Docs
 
-- [`docs/layout.md`](docs/layout.md) — tabs, cards, tooltips, pipeline (stable)
+- [`docs/layout.md`](docs/layout.md) — tabs, projects column, tooltips, pipeline
 - [`docs/theme.md`](docs/theme.md) — CSS variables; change these to recolor
 
 ---
@@ -210,6 +242,9 @@ png-tube-creator/
 | AI sprite gen fails | Settings: correct provider radio + key; OpenRouter list only includes image+reference models |
 | Video won't load | Try converting to MP4 (H.264) first — some codecs aren't supported |
 | Export looks wrong | Adjust Similarity/Smoothness sliders — start with defaults |
+| Project folder will not open | Path must be absolute and already exist. Restart `launch.sh` after pulling so `/api/project/open` exists |
+| Character missing from the list | Hard-refresh. Sending a sprite on creates the folder; the list should update without a reload |
+| Export still opens a download dialog | No project is open, or the server write failed. The reason stays in the projects column |
 
 ---
 

@@ -8,11 +8,13 @@ const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
 const { createProvider } = require('./lib/image-provider');
+const { readVideoApiKey } = require('./public/lib/status-text');
+const { prepareProject, writeProjectFile, fsErrorMessage, listProjectDirs, openProjectRoot } = require('./lib/project-write');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '120mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 app.use((req, res, next) => {
@@ -84,7 +86,7 @@ app.post('/api/generate', handleImageGenerate);
 app.post('/api/edits', handleImageGenerate);
 
 app.post('/api/video/generate', async (req, res) => {
-    const apiKey = req.headers['x-api-key'] || req.query.key;
+    const apiKey = readVideoApiKey(req.headers);
     if (!apiKey) return res.status(401).json({ error: 'No Google API key provided' });
     try {
         const url = `https://generativelanguage.googleapis.com/v1beta/interactions?key=${apiKey}`;
@@ -102,7 +104,7 @@ app.post('/api/video/generate', async (req, res) => {
 });
 
 app.post('/api/video/poll', async (req, res) => {
-    const apiKey = req.headers['x-api-key'] || req.query.key;
+    const apiKey = readVideoApiKey(req.headers);
     if (!apiKey) return res.status(401).json({ error: 'No Google API key provided' });
     try {
         const { operationName } = req.body;
@@ -116,7 +118,46 @@ app.post('/api/video/poll', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
+app.post('/api/project/list', (req, res) => {
+    try {
+        const dirs = listProjectDirs(req.body && req.body.root);
+        res.json({ ok: true, dirs });
+    } catch (err) {
+        res.status(400).json({ error: fsErrorMessage(err) });
+    }
+});
+
+app.post('/api/project/open', (req, res) => {
+    try {
+        const dir = openProjectRoot(req.body && req.body.root);
+        res.json({ ok: true, path: dir });
+    } catch (err) {
+        res.status(400).json({ error: fsErrorMessage(err) });
+    }
+});
+
+app.post('/api/project/prepare', (req, res) => {
+    try {
+        const { root, character } = req.body || {};
+        const dir = prepareProject(root, character);
+        res.json({ ok: true, path: dir });
+    } catch (err) {
+        res.status(400).json({ error: fsErrorMessage(err) });
+    }
+});
+
+app.post('/api/project/save', (req, res) => {
+    try {
+        const { root, parts, dataBase64 } = req.body || {};
+        if (!dataBase64) return res.status(400).json({ error: 'missing file data' });
+        const dest = writeProjectFile(root, parts, Buffer.from(dataBase64, 'base64'));
+        res.json({ ok: true, path: dest });
+    } catch (err) {
+        res.status(400).json({ error: fsErrorMessage(err) });
+    }
+});
+
+app.listen(PORT, '127.0.0.1', () => {
     console.log(`  ⚔️  AS Adventurer — http://localhost:${PORT}`);
     const url = `http://localhost:${PORT}`;
     const start = process.platform === 'win32' ? 'start' :
