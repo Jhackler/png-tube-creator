@@ -589,38 +589,52 @@ function initProjectBar() {
 
     function paint() {
         const open = window.ProjectStore.isOpen();
+        const status = window.ProjectStore.status ? window.ProjectStore.status() : { message: '', error: false };
         nameEl.textContent = open ? window.ProjectStore.label() : 'No folder selected';
-        if (hintEl) {
-            const who = window.ASAdventurer.characterName || 'Character';
-            hintEl.textContent = open
-                ? `Saving into ${window.ProjectStore.label()}/${who}/ — overlay clips use neutral_idle.webm and the rest of the selector names.`
-                : 'Saves still download. Choose a folder and they also land in Project/Character/.';
+        if (!hintEl) return;
+        hintEl.classList.toggle('project-error', !!status.error);
+        if (status.message) {
+            hintEl.textContent = status.message;
+            return;
         }
+        hintEl.textContent = open
+            ? 'Project is open. Saves write into the character folder. No download dialog.'
+            : 'Brave blocks Choose folder. Paste a path like /mnt/projects1/Vtubing/projects and click Use path.';
+    }
+
+    function showBarError(err) {
+        const message = (err && err.message) || 'Could not set the project folder';
+        if (window.ProjectStore.setStatus) window.ProjectStore.setStatus(message, true);
+        paint();
+    }
+
+    if (typeof window.showDirectoryPicker !== 'function') {
+        pickBtn.textContent = 'Picker blocked';
+        pickBtn.title = 'Brave blocks the folder picker. Paste a path and click Use path.';
     }
 
     pickBtn.addEventListener('click', async () => {
         try {
             await window.ProjectStore.pickFolder();
             paint();
-            if (window.showToast) window.showToast('Project folder set', 'success');
         } catch (err) {
             if (err && err.name === 'AbortError') return;
-            if (window.showToast) window.showToast(err.message || 'Could not pick a folder', 'error');
+            showBarError(err);
         }
     });
 
-    pathBtn.addEventListener('click', () => {
+    pathBtn.addEventListener('click', async () => {
         try {
-            window.ProjectStore.usePath(pathInput.value);
+            await window.ProjectStore.usePath(pathInput.value);
             paint();
-            if (window.showToast) window.showToast('Project path set', 'success');
         } catch (err) {
-            if (window.showToast) window.showToast(err.message, 'error');
+            showBarError(err);
         }
     });
 
     document.addEventListener('project-changed', paint);
-    window.ProjectStore.restore().then(paint);
+    document.addEventListener('project-status', paint);
+    window.ProjectStore.restore().then(paint).catch(showBarError);
     paint();
 }
 

@@ -9,7 +9,7 @@ const path = require('path');
 const { exec } = require('child_process');
 const { createProvider } = require('./lib/image-provider');
 const { readVideoApiKey } = require('./public/lib/status-text');
-const { resolveProjectFile } = require('./lib/project-paths');
+const { prepareProject, writeProjectFile, fsErrorMessage } = require('./lib/project-write');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -118,16 +118,24 @@ app.post('/api/video/poll', async (req, res) => {
     }
 });
 
+app.post('/api/project/prepare', (req, res) => {
+    try {
+        const { root, character } = req.body || {};
+        const dir = prepareProject(root, character);
+        res.json({ ok: true, path: dir });
+    } catch (err) {
+        res.status(400).json({ error: fsErrorMessage(err) });
+    }
+});
+
 app.post('/api/project/save', (req, res) => {
     try {
         const { root, parts, dataBase64 } = req.body || {};
         if (!dataBase64) return res.status(400).json({ error: 'missing file data' });
-        const dest = resolveProjectFile(root, parts);
-        fs.mkdirSync(path.dirname(dest), { recursive: true });
-        fs.writeFileSync(dest, Buffer.from(dataBase64, 'base64'));
+        const dest = writeProjectFile(root, parts, Buffer.from(dataBase64, 'base64'));
         res.json({ ok: true, path: dest });
     } catch (err) {
-        res.status(400).json({ error: err.message });
+        res.status(400).json({ error: fsErrorMessage(err) });
     }
 });
 

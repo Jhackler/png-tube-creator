@@ -1848,5 +1848,10 @@ input[type="range"]::-moz-range-thumb {
 }
 .project-hint {
     color: var(--text-dim);
-    font-size: 0.72rem;
+    font-size: 0.8rem;
+    flex-basis: 100%;
+}
+.project-hint.project-error {
+    color: #f0a0a0;
+    font-size: 0.9rem;
 }

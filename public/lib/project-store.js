@@ -8,6 +8,8 @@
     handle: null,
     rootPath: '',
     label: '',
+    status: '',
+    statusError: false,
   };
 
   function isOpen() {
@@ -24,6 +26,27 @@
 
   function emit() {
     document.dispatchEvent(new CustomEvent('project-changed'));
+  }
+
+  function setStatus(message, isError) {
+    state.status = message || '';
+    state.statusError = !!isError;
+    document.dispatchEvent(new CustomEvent('project-status', {
+      detail: { message: state.status, error: state.statusError },
+    }));
+  }
+
+  function status() {
+    return { message: state.status, error: state.statusError };
+  }
+
+  function rootPath() {
+    return state.rootPath;
+  }
+
+  async function readHttpError(resp) {
+    const data = await resp.json().catch(() => ({}));
+    return layout().projectHttpError(resp.status, data);
   }
 
   function idb() {
@@ -59,8 +82,10 @@
   }
 
   async function pickFolder() {
-    if (!window.showDirectoryPicker) {
-      throw new Error('This browser has no folder picker. Type an absolute path instead.');
+    if (typeof window.showDirectoryPicker !== 'function') {
+      const input = document.getElementById('projectPathInput');
+      if (input) input.focus();
+      throw new Error('Brave blocks the folder picker. Paste the folder path and click Use path.');
     }
     const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
     state.mode = 'handle';
@@ -73,24 +98,39 @@
     return state.label;
   }
 
-  function usePath(rootPath) {
-    const root = String(rootPath || '').trim();
-    if (!root.startsWith('/')) throw new Error('Path must be absolute, like /home/you/vtuber');
+  async function usePath(rootPathValue) {
+    const root = String(rootPathValue || '').trim();
+    if (!root.startsWith('/')) throw new Error('Path must be absolute, like /mnt/projects1/Vtubing/projects');
+    setStatus('Checking that the server can write to ' + root + '…', false);
+    const resp = await fetch('/api/project/prepare', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ root, character: characterName() }),
+    });
+    if (!resp.ok) throw new Error(await readHttpError(resp));
+    const data = await resp.json();
     state.mode = 'path';
     state.handle = null;
     state.rootPath = root;
     state.label = root.split('/').filter(Boolean).pop() || root;
-    idbSet('path', root);
-    idbSet('handle', null);
+    await idbSet('path', root);
+    await idbSet('handle', null);
+    const named = characterName() && characterName() !== 'Character';
+    setStatus(
+      named
+        ? 'Writing to ' + data.path
+        : 'Writing to ' + data.path + '. Set a character name in Sprite Prep and click Use path again, or this folder stays Character.',
+      !named
+    );
     emit();
-    return state.label;
+    return data.path;
   }
 
   async function restore() {
     try {
       const savedPath = await idbGet('path');
       if (savedPath) {
-        usePath(savedPath);
+        await usePath(savedPath);
         return;
       }
       const handle = await idbGet('handle');
@@ -130,7 +170,7 @@
       }),
     });
     const data = await resp.json().catch(() => ({}));
-    if (!resp.ok) throw new Error((data.error && data.error.message) || data.error || ('HTTP ' + resp.status));
+    if (!resp.ok) throw new Error(layout().projectHttpError(resp.status, data));
     return data.path;
   }
 
@@ -148,10 +188,17 @@
 
   async function saveBlob(bucket, filename, blob) {
     if (!isOpen()) return null;
-    const parts = layout().saveParts(characterName(), bucket, filename);
-    if (state.mode === 'handle') await writeHandle(parts, blob);
-    else await writePath(parts, blob);
-    return parts.join('/');
+    try {
+      const parts = layout().saveParts(characterName(), bucket, filename);
+      if (state.mode === 'handle') await writeHandle(parts, blob);
+      else await writePath(parts, blob);
+      const saved = parts.join('/');
+      setStatus('Saved ' + saved, false);
+      return saved;
+    } catch (err) {
+      setStatus(err.message || 'Project save failed', true);
+      throw err;
+    }
   }
 
   function browserDownload(href, filename) {
@@ -164,21 +211,31 @@
   }
 
   async function saveAndDownload({ bucket, filename, blob, href }) {
-    let saved = null;
+    const projectOpen = isOpen();
+    const download = !layout() || layout().shouldBrowserDownload(projectOpen);
+    if (download) {
+      browserDownload(href || URL.createObjectURL(blob), filename);
+      return null;
+    }
     try {
       const fileBlob = blob || (href ? await (await fetch(href)).blob() : null);
-      if (fileBlob) saved = await saveBlob(bucket, filename, fileBlob);
-      if (saved && window.showToast) window.showToast('Saved ' + saved, 'success');
+      if (!fileBlob) throw new Error('Nothing to save');
+      const saved = await saveBlob(bucket, filename, fileBlob);
+      if (window.showToast) window.showToast('Saved ' + saved, 'success');
+      return saved;
     } catch (err) {
-      if (window.showToast) window.showToast('Project save failed: ' + err.message, 'error');
+      setStatus(err.message || 'Project save failed', true);
+      if (window.showToast) window.showToast(err.message || 'Project save failed', 'error');
+      return null;
     }
-    browserDownload(href || URL.createObjectURL(blob), filename);
-    return saved;
   }
 
   window.ProjectStore = {
     isOpen,
     label,
+    status,
+    rootPath,
+    setStatus,
     pickFolder,
     usePath,
     restore,
