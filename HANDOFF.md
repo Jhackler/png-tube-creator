@@ -18,6 +18,8 @@ Companion: [Jhackler/Ai-png-tuber-overlay](https://github.com/Jhackler/Ai-png-tu
 1. **`launch.sh`** — distro-agnostic Linux TUI (`setup` / `update` / `start`). Portable Node 20.x into `./runtime/` if system Node < 18. Opens a terminal when double-clicked.
 2. **OpenRouter image gen** — Settings radios OpenAI vs OpenRouter. Catalog is filtered to models that generate images **and** accept reference images (`lib/image-provider/`, `public/image-settings.js`). Keys stay in `localStorage`.
 3. Personal Linux-first prefs. Do not break Windows on purpose; do not maintain it.
+4. **Projects column** — pick an absolute folder, create or select a character, save pipeline files there. Overlay clips use selector names (`neutral_idle.webm`) inside the character folder. Brave has no folder picker; the path field is the control. Server routes: `/api/project/open`, `/list`, `/prepare`, `/save`. Bound to `127.0.0.1`.
+5. **Image model on Sprite Prep** — same OpenRouter list as Settings. Provider still switches only in Settings.
 
 ## Architecture (still true)
 
@@ -25,7 +27,8 @@ Companion: [Jhackler/Ai-png-tuber-overlay](https://github.com/Jhackler/Ai-png-tu
 - Image: `createProvider('openai'|'openrouter')` in `lib/image-provider/`.
 - Video: Gemini `v1beta/interactions` via `/api/video/generate` + `/api/video/poll`.
 - Tab handoff: `window.ASAdventurer.handoff` (sprite, video, `keyColor`).
-- Biggest file: `public/model-exporter.js` (chroma key + GIF/WebM).
+- Projects: `public/lib/project-store.js` plus `lib/project-write.js`. Path rules in `public/lib/project-layout.js` (tested via `lib/project-paths.js`).
+- Biggest file: `public/model-exporter.js` (chroma key + GIF/WebM). Chroma/GIF helpers live in `public/lib/`.
 - Default canvas 1280×720, sprite bottom-anchored. Preferred key: magenta `#FF00FF`.
 
 ## UI docs
@@ -37,12 +40,13 @@ Live tokens: `public/style.css` `:root`. Do not copy palettes into this file.
 
 ## Overlay filename contract
 
-Expression states the overlay actually loads: `neutral_idle` (required), `{happy,sad,surprised}_{idle,speaking}`, `typing`, `eyes_closed`. Emotes live under `emotes/<name>/`. Creator Idle/Intro/Outro presets are not those keys.
+Expression states the overlay actually loads: `neutral_idle` (required), `{happy,sad,surprised}_{idle,speaking}`, `typing`, `eyes_closed`. With a project open, exporter presets are those names and save as `Character/neutral_idle.webm`. Intro, outro, and animation go in `extras/`. Emotes in the overlay still live under `emotes/<name>/`. Copy the character folder into `public/assets/`; `sprite/`, `video/`, `ready.txt`, and `extras/` are ignored.
 
 ## Do not use from the old dump
 
 - Port 3000 for this app
 - “OpenAI only”
+- Filename presets `{name}_Neutral_Idle` as the overlay contract. With a project open, the file is `neutral_idle.webm` inside the character folder.
 - `.bat` as the primary launcher
 - `H:\Git\devtools\…` workspace paths
 - External `editor.css` / ASArtTool / Fugi Maker file:// links
