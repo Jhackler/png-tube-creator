@@ -622,6 +622,8 @@ function initProjectBar() {
     const pathBtn = document.getElementById('projectPathBtn');
     const pathInput = document.getElementById('projectPathInput');
     const listEl = document.getElementById('projectList');
+    const newNameInput = document.getElementById('projectNewName');
+    const createBtn = document.getElementById('projectCreateBtn');
     if (!nameEl || !window.ProjectStore) return;
 
     function paint() {
@@ -635,8 +637,8 @@ function initProjectBar() {
             return;
         }
         hintEl.textContent = open
-            ? 'Click a folder to fill the sprite name. Saves go into that folder.'
-            : 'Paste the projects folder and click Use path.';
+            ? 'Create a character, or click one below. That fills the sprite name.'
+            : 'Paste the projects folder and click Use path. That only opens the folder.';
     }
 
     function markSelected(dirName) {
@@ -714,6 +716,20 @@ function initProjectBar() {
             showBarError(err);
         }
     });
+
+    if (createBtn) {
+        createBtn.addEventListener('click', async () => {
+            try {
+                const folder = await window.ProjectStore.createCharacter(newNameInput && newNameInput.value);
+                applyCharacterName(folder);
+                if (newNameInput) newNameInput.value = '';
+                paint();
+                await refreshList();
+            } catch (err) {
+                showBarError(err);
+            }
+        });
+    }
 
     document.addEventListener('project-changed', () => {
         paint();

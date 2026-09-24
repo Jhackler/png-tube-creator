@@ -5,8 +5,21 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { prepareProject, writeProjectFile, fsErrorMessage, listProjectDirs } = require('../lib/project-write');
+const {
+  prepareProject,
+  writeProjectFile,
+  fsErrorMessage,
+  listProjectDirs,
+  openProjectRoot,
+} = require('../lib/project-write');
 const { projectHttpError, shouldBrowserDownload } = require('../public/lib/project-layout');
+
+test('opening a projects folder does not create a character', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'as-project-'));
+  assert.equal(openProjectRoot(root), root);
+  assert.deepEqual(fs.readdirSync(root), []);
+  fs.rmSync(root, { recursive: true, force: true });
+});
 
 test('list returns only real directories', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'as-project-'));

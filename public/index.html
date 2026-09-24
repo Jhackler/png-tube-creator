@@ -24,8 +24,11 @@
             <button type="button" class="btn btn-sm btn-secondary" id="projectPickBtn" title="Brave blocks this. Use the path field.">Choose folder</button>
         </div>
         <p id="projectName" class="project-name">No folder selected</p>
-        <p id="projectHint" class="project-hint">Paste the projects folder and click Use path. Folders in that path show up below.</p>
+        <p id="projectHint" class="project-hint">Use path opens this folder. Create makes a new character. Click a name to select it.</p>
         <ul id="projectList" class="project-list"></ul>
+        <label class="project-label" for="projectNewName">New character</label>
+        <input type="text" id="projectNewName" class="project-path" placeholder="Character name" title="Creates a folder in the projects path and fills the sprite name.">
+        <button type="button" class="btn btn-sm btn-primary" id="projectCreateBtn">Create</button>
     </aside>
 
     <div class="app-main">
@@ -1087,8 +1090,8 @@
 <script src="video-gen.js"></script>
 <script src="video-prep.js"></script>
 <script src="lib/export-names.js"></script>
-<script src="lib/project-layout.js?v=4"></script>
-<script src="lib/project-store.js?v=4"></script>
+<script src="lib/project-layout.js?v=5"></script>
+<script src="lib/project-store.js?v=5"></script>
 <script src="lib/status-text.js"></script>
 <script src="lib/color-quantizer.js"></script>
 <script src="lib/gif-encoder.js"></script>

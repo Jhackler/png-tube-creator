@@ -172,10 +172,10 @@
     const root = String(rootPathValue || '').trim();
     if (!root.startsWith('/')) throw new Error('Path must be absolute, like /mnt/projects1/Vtubing/projects');
     setStatus('Checking that the server can write to ' + root + '…', false);
-    const resp = await fetch('/api/project/prepare', {
+    const resp = await fetch('/api/project/open', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ root, character: characterName() }),
+      body: JSON.stringify({ root }),
     });
     if (!resp.ok) throw new Error(await readHttpError(resp));
     const data = await resp.json();
@@ -185,15 +185,25 @@
     state.label = root.split('/').filter(Boolean).pop() || root;
     await idbSet('path', root);
     await idbSet('handle', null);
-    const named = characterName() && characterName() !== 'Character';
-    setStatus(
-      named
-        ? 'Writing to ' + data.path
-        : 'Writing to ' + data.path + '. Set a character name in Sprite Prep and click Use path again, or this folder stays Character.',
-      !named
-    );
+    setStatus('Projects folder open. Create a character, or click one below.', false);
     emit();
     return data.path;
+  }
+
+  async function createCharacter(name) {
+    const raw = String(name || '').trim();
+    if (!raw) throw new Error('Type a character name first.');
+    if (!isOpen() || !state.rootPath) throw new Error('Set the projects folder first.');
+    const resp = await fetch('/api/project/prepare', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ root: state.rootPath, character: raw }),
+    });
+    if (!resp.ok) throw new Error(await readHttpError(resp));
+    const data = await resp.json();
+    const folder = String(data.path || '').split('/').filter(Boolean).pop();
+    setStatus('Created ' + folder, false);
+    return folder;
   }
 
   async function restore() {
@@ -320,6 +330,7 @@
     setStatus,
     pickFolder,
     usePath,
+    createCharacter,
     restore,
     listDirs,
     saveBlob,
