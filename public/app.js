@@ -579,6 +579,26 @@ function initCharNameSync() {
     }
 }
 
+function currentSpriteName() {
+    const fromField = (document.getElementById('sgCharName')?.value || document.getElementById('spCharName')?.value || '').trim();
+    if (fromField) {
+        window.ASAdventurer.characterName = fromField;
+        return fromField;
+    }
+    return (window.ASAdventurer.characterName || '').trim();
+}
+
+async function ensureActiveCharacter() {
+    if (!window.ProjectStore || !window.ProjectStore.isOpen()) return null;
+    const name = currentSpriteName();
+    if (!name) return null;
+    const folder = await window.ProjectStore.createCharacter(name);
+    applyCharacterName(folder);
+    document.dispatchEvent(new CustomEvent('project-changed'));
+    return folder;
+}
+window.ensureActiveCharacter = ensureActiveCharacter;
+
 function applyCharacterName(name) {
     window.ASAdventurer.characterName = name;
     localStorage.setItem('as_char_name', name);

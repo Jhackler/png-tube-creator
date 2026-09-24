@@ -179,6 +179,13 @@ body::before {
     letter-spacing: 0.06em;
     color: var(--accent-gold);
 }
+.project-subheading {
+    margin: 0.35rem 0 0;
+    font-family: var(--font-heading);
+    font-size: 0.85rem;
+    letter-spacing: 0.06em;
+    color: var(--accent-gold);
+}
 .project-actions {
     display: flex;
     flex-wrap: wrap;

@@ -286,6 +286,14 @@
                 ? await window.askSaveCopy({ projectOpen })
                 : 'continue';
             if (choice === 'stay') return;
+            if (projectOpen && window.ensureActiveCharacter) {
+                try {
+                    await window.ensureActiveCharacter();
+                } catch (err) {
+                    showToast(err.message || 'Could not create the character folder', 'error');
+                    return;
+                }
+            }
             if (choice === 'save') {
                 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..+/, '').replace('T', '_');
                 try {

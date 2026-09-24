@@ -431,8 +431,12 @@
             window.ASAdventurer.handoff.videoBlob = video.blob;
             window.ASAdventurer.handoff.videoUrl = video.url;
             if (window.ProjectStore && window.ProjectStore.isOpen() && video.blob) {
-                window.ProjectStore.saveBlob('video', 'source.mp4', video.blob).catch((err) => {
-                    showToast('Project save failed: ' + err.message, 'error');
+                const saveVideo = () => window.ProjectStore.saveBlob('video', 'source.mp4', video.blob);
+                const ready = window.ensureActiveCharacter
+                    ? window.ensureActiveCharacter()
+                    : Promise.resolve();
+                ready.then(saveVideo).catch((err) => {
+                    showToast(err.message || 'Project save failed', 'error');
                 });
             }
             showToast('Video sent to Video Preparation', 'success');
