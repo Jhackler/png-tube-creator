@@ -551,11 +551,21 @@
         }
 
         const blob = base64ToBlob(selectedResult);
-        window.ASAdventurer.handoff.spriteBlob = blob;
-        window.ASAdventurer.handoff.spriteBase64 = selectedResult;
-        localStorage.setItem('as_char_name', window.ASAdventurer.characterName || '');
-        showToast('Sprite sent to Generate Video', 'success');
-        switchTab('tab-video-gen');
+        const send = async () => {
+            if (window.ProjectStore && window.ProjectStore.isOpen() && window.ensureActiveCharacter) {
+                try {
+                    await window.ensureActiveCharacter();
+                } catch (err) {
+                    showToast(err.message || 'Could not create the character folder', 'error');
+                }
+            }
+            window.ASAdventurer.handoff.spriteBlob = blob;
+            window.ASAdventurer.handoff.spriteBase64 = selectedResult;
+            localStorage.setItem('as_char_name', window.ASAdventurer.characterName || '');
+            showToast('Sprite sent to Generate Video', 'success');
+            switchTab('tab-video-gen');
+        };
+        send();
     }
 
     function genHandoffToManual() {

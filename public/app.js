@@ -594,7 +594,8 @@ async function ensureActiveCharacter() {
     if (!name) return null;
     const folder = await window.ProjectStore.createCharacter(name);
     applyCharacterName(folder);
-    document.dispatchEvent(new CustomEvent('project-changed'));
+    if (window.showProjectFolder) window.showProjectFolder(folder);
+    if (window.refreshProjectList) await window.refreshProjectList();
     return folder;
 }
 window.ensureActiveCharacter = ensureActiveCharacter;
@@ -666,13 +667,42 @@ function initProjectBar() {
         });
     }
 
+    let listToken = 0;
+
+    function showFolder(dirName) {
+        if (!listEl || !dirName) return;
+        const empty = listEl.querySelector('.project-empty');
+        if (empty) empty.remove();
+        let btn = listEl.querySelector('button[data-dir="' + CSS.escape(dirName) + '"]');
+        if (!btn) {
+            const li = document.createElement('li');
+            btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'project-item';
+            btn.dataset.dir = dirName;
+            btn.textContent = dirName;
+            btn.addEventListener('click', () => {
+                applyCharacterName(dirName);
+                markSelected(dirName);
+                if (window.ProjectStore.setStatus) {
+                    window.ProjectStore.setStatus('Character name set to ' + dirName, false);
+                }
+            });
+            li.appendChild(btn);
+            listEl.appendChild(li);
+        }
+        markSelected(dirName);
+    }
+
     async function refreshList() {
         if (!listEl || !window.ProjectStore.listDirs || !window.ProjectStore.isOpen()) {
             if (listEl) listEl.innerHTML = '';
             return;
         }
+        const token = ++listToken;
         try {
             const dirs = await window.ProjectStore.listDirs();
+            if (token !== listToken) return;
             listEl.innerHTML = '';
             if (!dirs.length) {
                 const empty = document.createElement('li');
@@ -681,28 +711,16 @@ function initProjectBar() {
                 listEl.appendChild(empty);
                 return;
             }
-            dirs.forEach((dir) => {
-                const li = document.createElement('li');
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'project-item';
-                btn.dataset.dir = dir;
-                btn.textContent = dir;
-                btn.addEventListener('click', () => {
-                    applyCharacterName(dir);
-                    markSelected(dir);
-                    if (window.ProjectStore.setStatus) {
-                        window.ProjectStore.setStatus('Character name set to ' + dir, false);
-                    }
-                });
-                li.appendChild(btn);
-                listEl.appendChild(li);
-            });
+            dirs.forEach((dir) => showFolder(dir));
             markSelected(window.ASAdventurer.characterName || '');
         } catch (err) {
+            if (token !== listToken) return;
             showBarError(err);
         }
     }
+
+    window.refreshProjectList = refreshList;
+    window.showProjectFolder = showFolder;
 
     function showBarError(err) {
         const message = (err && err.message) || 'Could not set the project folder';

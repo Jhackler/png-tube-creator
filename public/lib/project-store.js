@@ -274,6 +274,8 @@
       else await writePath(parts, blob);
       const saved = parts.join('/');
       setStatus('Saved ' + saved, false);
+      if (window.showProjectFolder) window.showProjectFolder(parts[0]);
+      if (window.refreshProjectList) window.refreshProjectList();
       return saved;
     } catch (err) {
       setStatus(err.message || 'Project save failed', true);
