@@ -579,12 +579,49 @@ function initCharNameSync() {
     }
 }
 
+function applyCharacterName(name) {
+    window.ASAdventurer.characterName = name;
+    localStorage.setItem('as_char_name', name);
+    ['sgCharName', 'spCharName'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.value = name;
+    });
+}
+
+function askSaveCopy({ projectOpen }) {
+    const overlay = document.getElementById('savePrompt');
+    const text = document.getElementById('savePromptText');
+    const saveBtn = document.getElementById('savePromptSave');
+    const skipBtn = document.getElementById('savePromptSkip');
+    const cancelBtn = document.getElementById('savePromptCancel');
+    if (!overlay) return Promise.resolve('continue');
+    text.textContent = projectOpen
+        ? 'Save a new copy into this character folder before continuing? Earlier sprites stay where they are. The download button on this page is unchanged.'
+        : 'No project folder is open, so nothing will be written. You can still use the download button on this page.';
+    saveBtn.classList.toggle('hidden', !projectOpen);
+    overlay.classList.remove('hidden');
+    return new Promise((resolve) => {
+        function finish(choice) {
+            overlay.classList.add('hidden');
+            saveBtn.onclick = null;
+            skipBtn.onclick = null;
+            cancelBtn.onclick = null;
+            resolve(choice);
+        }
+        saveBtn.onclick = () => finish('save');
+        skipBtn.onclick = () => finish('continue');
+        cancelBtn.onclick = () => finish('stay');
+    });
+}
+window.askSaveCopy = askSaveCopy;
+
 function initProjectBar() {
     const nameEl = document.getElementById('projectName');
     const hintEl = document.getElementById('projectHint');
     const pickBtn = document.getElementById('projectPickBtn');
     const pathBtn = document.getElementById('projectPathBtn');
     const pathInput = document.getElementById('projectPathInput');
+    const listEl = document.getElementById('projectList');
     if (!nameEl || !window.ProjectStore) return;
 
     function paint() {
@@ -598,8 +635,53 @@ function initProjectBar() {
             return;
         }
         hintEl.textContent = open
-            ? 'Project is open. Saves write into the character folder. No download dialog.'
-            : 'Brave blocks Choose folder. Paste a path like /mnt/projects1/Vtubing/projects and click Use path.';
+            ? 'Click a folder to fill the sprite name. Saves go into that folder.'
+            : 'Paste the projects folder and click Use path.';
+    }
+
+    function markSelected(dirName) {
+        if (!listEl) return;
+        listEl.querySelectorAll('button').forEach((btn) => {
+            btn.classList.toggle('active', btn.dataset.dir === dirName);
+        });
+    }
+
+    async function refreshList() {
+        if (!listEl || !window.ProjectStore.listDirs || !window.ProjectStore.isOpen()) {
+            if (listEl) listEl.innerHTML = '';
+            return;
+        }
+        try {
+            const dirs = await window.ProjectStore.listDirs();
+            listEl.innerHTML = '';
+            if (!dirs.length) {
+                const empty = document.createElement('li');
+                empty.className = 'project-empty';
+                empty.textContent = 'No character folders yet.';
+                listEl.appendChild(empty);
+                return;
+            }
+            dirs.forEach((dir) => {
+                const li = document.createElement('li');
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'project-item';
+                btn.dataset.dir = dir;
+                btn.textContent = dir;
+                btn.addEventListener('click', () => {
+                    applyCharacterName(dir);
+                    markSelected(dir);
+                    if (window.ProjectStore.setStatus) {
+                        window.ProjectStore.setStatus('Character name set to ' + dir, false);
+                    }
+                });
+                li.appendChild(btn);
+                listEl.appendChild(li);
+            });
+            markSelected(window.ASAdventurer.characterName || '');
+        } catch (err) {
+            showBarError(err);
+        }
     }
 
     function showBarError(err) {
@@ -627,14 +709,22 @@ function initProjectBar() {
         try {
             await window.ProjectStore.usePath(pathInput.value);
             paint();
+            await refreshList();
         } catch (err) {
             showBarError(err);
         }
     });
 
-    document.addEventListener('project-changed', paint);
+    document.addEventListener('project-changed', () => {
+        paint();
+        refreshList();
+    });
     document.addEventListener('project-status', paint);
-    window.ProjectStore.restore().then(paint).catch(showBarError);
+    window.ProjectStore.restore().then(() => {
+        if (window.ProjectStore.rootPath && pathInput) pathInput.value = window.ProjectStore.rootPath();
+        paint();
+        return refreshList();
+    }).catch(showBarError);
     paint();
 }
 

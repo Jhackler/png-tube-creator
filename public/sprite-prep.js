@@ -281,16 +281,24 @@
     function handoffToVideoGen() {
         const canvas = document.getElementById('spCanvas');
         canvas.toBlob(async (blob) => {
+            const projectOpen = !!(window.ProjectStore && window.ProjectStore.isOpen());
+            const choice = window.askSaveCopy
+                ? await window.askSaveCopy({ projectOpen })
+                : 'continue';
+            if (choice === 'stay') return;
+            if (choice === 'save') {
+                const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..+/, '').replace('T', '_');
+                try {
+                    await window.ProjectStore.saveBlob('sprite', `sent_${stamp}.png`, blob);
+                } catch (err) {
+                    showToast(err.message || 'Project save failed', 'error');
+                    return;
+                }
+            }
             window.ASAdventurer.handoff.spriteBlob = blob;
             window.ASAdventurer.handoff.spriteCanvas = canvas;
             const b64 = await blobToBase64(blob);
             window.ASAdventurer.handoff.spriteBase64 = b64;
-            if (window.ProjectStore && window.ProjectStore.isOpen()) {
-                window.ProjectStore.saveBlob('sprite', 'chroma.png', blob).catch((err) => {
-                    showToast('Project save failed: ' + err.message, 'error');
-                });
-            }
-            // Save character name
             localStorage.setItem('as_char_name', window.ASAdventurer.characterName || '');
             showToast('Sprite sent to Generate Video', 'success');
             switchTab('tab-video-gen');

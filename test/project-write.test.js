@@ -5,8 +5,18 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { prepareProject, writeProjectFile, fsErrorMessage } = require('../lib/project-write');
+const { prepareProject, writeProjectFile, fsErrorMessage, listProjectDirs } = require('../lib/project-write');
 const { projectHttpError, shouldBrowserDownload } = require('../public/lib/project-layout');
+
+test('list returns only real directories', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'as-project-'));
+  fs.mkdirSync(path.join(root, 'Mira'));
+  fs.mkdirSync(path.join(root, 'Ada'));
+  fs.writeFileSync(path.join(root, 'notes.txt'), 'nope');
+  fs.mkdirSync(path.join(root, '.hidden'));
+  assert.deepEqual(listProjectDirs(root), ['Ada', 'Mira']);
+  fs.rmSync(root, { recursive: true, force: true });
+});
 
 test('prepare creates the character folder and a marker', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'as-project-'));

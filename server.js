@@ -9,7 +9,7 @@ const path = require('path');
 const { exec } = require('child_process');
 const { createProvider } = require('./lib/image-provider');
 const { readVideoApiKey } = require('./public/lib/status-text');
-const { prepareProject, writeProjectFile, fsErrorMessage } = require('./lib/project-write');
+const { prepareProject, writeProjectFile, fsErrorMessage, listProjectDirs } = require('./lib/project-write');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -115,6 +115,15 @@ app.post('/api/video/poll', async (req, res) => {
         res.status(response.status).type('application/json').send(data);
     } catch (err) {
         res.status(502).json({ error: `Proxy error: ${err.message}` });
+    }
+});
+
+app.post('/api/project/list', (req, res) => {
+    try {
+        const dirs = listProjectDirs(req.body && req.body.root);
+        res.json({ ok: true, dirs });
+    } catch (err) {
+        res.status(400).json({ error: fsErrorMessage(err) });
     }
 });
 

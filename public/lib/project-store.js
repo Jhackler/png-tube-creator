@@ -300,6 +300,18 @@
     }
   }
 
+  async function listDirs() {
+    if (!state.rootPath) return [];
+    const resp = await fetch('/api/project/list', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ root: state.rootPath }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(layout().projectHttpError(resp.status, data));
+    return data.dirs || [];
+  }
+
   window.ProjectStore = {
     isOpen,
     label,
@@ -309,6 +321,7 @@
     pickFolder,
     usePath,
     restore,
+    listDirs,
     saveBlob,
     saveAndDownload,
     characterName,

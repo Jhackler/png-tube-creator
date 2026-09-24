@@ -15,9 +15,21 @@
 
 <div class="app-container">
 
-    <!-- ═══════════════════════════════════════
-         HEADER
-         ═══════════════════════════════════════ -->
+    <aside class="project-column" id="projectBar">
+        <h2 class="project-heading">Projects</h2>
+        <label class="project-label" for="projectPathInput">Folder</label>
+        <input type="text" id="projectPathInput" class="project-path" placeholder="/mnt/projects1/Vtubing/projects" title="Absolute path to the folder that holds one directory per character.">
+        <div class="project-actions">
+            <button type="button" class="btn btn-sm btn-secondary" id="projectPathBtn">Use path</button>
+            <button type="button" class="btn btn-sm btn-secondary" id="projectPickBtn" title="Brave blocks this. Use the path field.">Choose folder</button>
+        </div>
+        <p id="projectName" class="project-name">No folder selected</p>
+        <p id="projectHint" class="project-hint">Paste the projects folder and click Use path. Folders in that path show up below.</p>
+        <ul id="projectList" class="project-list"></ul>
+    </aside>
+
+    <div class="app-main">
+
     <header class="app-header">
         <div class="brand">
             <img src="assets/Angelsword-Logo-white_25pct.webp" alt="Angel's Sword Studios" class="brand-logo">
@@ -45,15 +57,6 @@
             </span>
         </nav>
     </header>
-
-    <div class="project-bar" id="projectBar">
-        <span class="project-label">Project</span>
-        <span id="projectName" class="project-name">No folder selected</span>
-        <button type="button" class="btn btn-sm btn-secondary" id="projectPickBtn" title="Pick a folder on this computer. Character subfolders are created when you save.">Choose folder</button>
-        <input type="text" id="projectPathInput" class="project-path" placeholder="/home/you/vtuber-project" title="Absolute path. Used if the browser has no folder picker.">
-        <button type="button" class="btn btn-sm btn-secondary" id="projectPathBtn">Use path</button>
-        <span id="projectHint" class="project-hint">Brave blocks Choose folder. Paste a path and click Use path. The character folder is created when that check succeeds.</span>
-    </div>
 
     <!-- ═══════════════════════════════════════
          TAB BAR
@@ -1059,7 +1062,21 @@
 
     </div><!-- /tab-content -->
 
+    </div><!-- /app-main -->
+
 </div><!-- /app-container -->
+
+<div class="modal-overlay hidden" id="savePrompt">
+    <div class="modal-panel save-prompt-card">
+        <h3 id="savePromptTitle">Save before continuing?</h3>
+        <p id="savePromptText"></p>
+        <div class="project-actions">
+            <button type="button" class="btn btn-sm btn-primary" id="savePromptSave">Save a copy</button>
+            <button type="button" class="btn btn-sm btn-secondary" id="savePromptSkip">Continue without saving</button>
+            <button type="button" class="btn btn-sm btn-secondary" id="savePromptCancel">Stay here</button>
+        </div>
+    </div>
+</div>
 
 <!-- Toast Container -->
 <div class="toast-container" id="toastContainer"></div>
@@ -1070,8 +1087,8 @@
 <script src="video-gen.js"></script>
 <script src="video-prep.js"></script>
 <script src="lib/export-names.js"></script>
-<script src="lib/project-layout.js?v=3"></script>
-<script src="lib/project-store.js?v=3"></script>
+<script src="lib/project-layout.js?v=4"></script>
+<script src="lib/project-store.js?v=4"></script>
 <script src="lib/status-text.js"></script>
 <script src="lib/color-quantizer.js"></script>
 <script src="lib/gif-encoder.js"></script>

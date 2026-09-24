@@ -145,11 +145,94 @@ body::before {
     position: relative;
     z-index: 1;
     display: flex;
+    flex-direction: row;
+    height: 100vh;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+}
+
+.app-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
     flex-direction: column;
     height: 100vh;
-    max-width: 1600px;
-    margin: 0 auto;
     padding: 0 1.5rem;
+}
+
+.project-column {
+    width: 260px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    padding: 1rem 0.85rem;
+    border-right: 1px solid var(--border);
+    background: var(--bg-panel);
+    overflow: auto;
+}
+.project-heading {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    letter-spacing: 0.06em;
+    color: var(--accent-gold);
+}
+.project-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+.project-column .project-path {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+}
+.project-list {
+    list-style: none;
+    margin: 0.4rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.project-item {
+    width: 100%;
+    text-align: left;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-input);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 0.82rem;
+}
+.project-item.active,
+.project-item:hover {
+    border-color: var(--accent-gold);
+    color: var(--accent-gold);
+}
+.project-empty {
+    color: var(--text-dim);
+    font-size: 0.78rem;
+}
+.save-prompt-card {
+    width: min(420px, calc(100vw - 2rem));
+    padding: 1.25rem;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+.save-prompt-card h3 {
+    margin: 0 0 0.5rem;
+    font-family: var(--font-heading);
+    color: var(--accent-gold);
+}
+.save-prompt-card p {
+    margin: 0 0 1rem;
+    color: var(--text);
+    line-height: 1.4;
 }
 
 /* --- Header --- */
