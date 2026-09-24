@@ -184,6 +184,10 @@ body::before {
     flex-wrap: wrap;
     gap: 0.4rem;
 }
+.project-column .project-hint {
+    flex-basis: auto;
+    margin: 0;
+}
 .project-column .project-path {
     width: 100%;
     max-width: none;

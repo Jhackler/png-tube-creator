@@ -616,7 +616,6 @@ function askSaveCopy({ projectOpen }) {
 window.askSaveCopy = askSaveCopy;
 
 function initProjectBar() {
-    const nameEl = document.getElementById('projectName');
     const hintEl = document.getElementById('projectHint');
     const pickBtn = document.getElementById('projectPickBtn');
     const pathBtn = document.getElementById('projectPathBtn');
@@ -624,12 +623,11 @@ function initProjectBar() {
     const listEl = document.getElementById('projectList');
     const newNameInput = document.getElementById('projectNewName');
     const createBtn = document.getElementById('projectCreateBtn');
-    if (!nameEl || !window.ProjectStore) return;
+    if (!window.ProjectStore) return;
 
     function paint() {
         const open = window.ProjectStore.isOpen();
         const status = window.ProjectStore.status ? window.ProjectStore.status() : { message: '', error: false };
-        nameEl.textContent = open ? window.ProjectStore.label() : 'No folder selected';
         if (!hintEl) return;
         hintEl.classList.toggle('project-error', !!status.error);
         if (status.message) {

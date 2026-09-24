@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Cinzel+Decorative:wght@400;700&family=Outfit:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=6">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚔️</text></svg>">
 </head>
 <body>
@@ -23,12 +23,11 @@
             <button type="button" class="btn btn-sm btn-secondary" id="projectPathBtn">Use path</button>
             <button type="button" class="btn btn-sm btn-secondary" id="projectPickBtn" title="Brave blocks this. Use the path field.">Choose folder</button>
         </div>
-        <p id="projectName" class="project-name">No folder selected</p>
         <p id="projectHint" class="project-hint">Use path opens this folder. Create makes a new character. Click a name to select it.</p>
-        <ul id="projectList" class="project-list"></ul>
         <label class="project-label" for="projectNewName">New character</label>
         <input type="text" id="projectNewName" class="project-path" placeholder="Character name" title="Creates a folder in the projects path and fills the sprite name.">
         <button type="button" class="btn btn-sm btn-primary" id="projectCreateBtn">Create</button>
+        <ul id="projectList" class="project-list"></ul>
     </aside>
 
     <div class="app-main">
@@ -1091,7 +1090,7 @@
 <script src="video-prep.js"></script>
 <script src="lib/export-names.js"></script>
 <script src="lib/project-layout.js?v=5"></script>
-<script src="lib/project-store.js?v=5"></script>
+<script src="lib/project-store.js?v=6"></script>
 <script src="lib/status-text.js"></script>
 <script src="lib/color-quantizer.js"></script>
 <script src="lib/gif-encoder.js"></script>
