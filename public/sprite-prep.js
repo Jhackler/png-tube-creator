@@ -262,12 +262,19 @@
     function downloadPNG() {
         const canvas = document.getElementById('spCanvas');
         canvas.toBlob(blob => {
+            const projectOpen = window.ProjectStore && window.ProjectStore.isOpen();
             const name = window.ASAdventurer.characterName || spriteFileName || 'sprite';
+            const filename = projectOpen ? 'chroma.png' : `${name}_1280x720.png`;
+            const href = URL.createObjectURL(blob);
+            if (projectOpen) {
+                window.ProjectStore.saveAndDownload({ bucket: 'sprite', filename, blob, href });
+                return;
+            }
             const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `${name}_1280x720.png`;
+            a.href = href;
+            a.download = filename;
             a.click();
-            URL.revokeObjectURL(a.href);
+            URL.revokeObjectURL(href);
         }, 'image/png');
     }
 
@@ -278,6 +285,11 @@
             window.ASAdventurer.handoff.spriteCanvas = canvas;
             const b64 = await blobToBase64(blob);
             window.ASAdventurer.handoff.spriteBase64 = b64;
+            if (window.ProjectStore && window.ProjectStore.isOpen()) {
+                window.ProjectStore.saveBlob('sprite', 'chroma.png', blob).catch((err) => {
+                    showToast('Project save failed: ' + err.message, 'error');
+                });
+            }
             // Save character name
             localStorage.setItem('as_char_name', window.ASAdventurer.characterName || '');
             showToast('Sprite sent to Generate Video', 'success');
@@ -478,10 +490,20 @@
             const dataUrl = genResults[idx];
 
             if (btn.dataset.action === 'download') {
-                const a = document.createElement('a');
-                a.href = dataUrl;
-                a.download = `${window.ASAdventurer.characterName || 'sprite'}_gen_${idx + 1}.png`;
-                a.click();
+                const projectOpen = window.ProjectStore && window.ProjectStore.isOpen();
+                const filename = projectOpen
+                    ? `gen_${idx + 1}.png`
+                    : `${window.ASAdventurer.characterName || 'sprite'}_gen_${idx + 1}.png`;
+                fetch(dataUrl).then(r => r.blob()).then(blob => {
+                    if (projectOpen) {
+                        window.ProjectStore.saveAndDownload({ bucket: 'sprite', filename, blob, href: dataUrl });
+                    } else {
+                        const a = document.createElement('a');
+                        a.href = dataUrl;
+                        a.download = filename;
+                        a.click();
+                    }
+                });
             } else if (btn.dataset.action === 'select') {
                 grid.querySelectorAll('.result-card').forEach(c => c.classList.remove('selected'));
                 btn.closest('.result-card').classList.add('selected');

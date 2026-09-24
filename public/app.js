@@ -579,6 +579,51 @@ function initCharNameSync() {
     }
 }
 
+function initProjectBar() {
+    const nameEl = document.getElementById('projectName');
+    const hintEl = document.getElementById('projectHint');
+    const pickBtn = document.getElementById('projectPickBtn');
+    const pathBtn = document.getElementById('projectPathBtn');
+    const pathInput = document.getElementById('projectPathInput');
+    if (!nameEl || !window.ProjectStore) return;
+
+    function paint() {
+        const open = window.ProjectStore.isOpen();
+        nameEl.textContent = open ? window.ProjectStore.label() : 'No folder selected';
+        if (hintEl) {
+            const who = window.ASAdventurer.characterName || 'Character';
+            hintEl.textContent = open
+                ? `Saving into ${window.ProjectStore.label()}/${who}/ — overlay clips use neutral_idle.webm and the rest of the selector names.`
+                : 'Saves still download. Choose a folder and they also land in Project/Character/.';
+        }
+    }
+
+    pickBtn.addEventListener('click', async () => {
+        try {
+            await window.ProjectStore.pickFolder();
+            paint();
+            if (window.showToast) window.showToast('Project folder set', 'success');
+        } catch (err) {
+            if (err && err.name === 'AbortError') return;
+            if (window.showToast) window.showToast(err.message || 'Could not pick a folder', 'error');
+        }
+    });
+
+    pathBtn.addEventListener('click', () => {
+        try {
+            window.ProjectStore.usePath(pathInput.value);
+            paint();
+            if (window.showToast) window.showToast('Project path set', 'success');
+        } catch (err) {
+            if (window.showToast) window.showToast(err.message, 'error');
+        }
+    });
+
+    document.addEventListener('project-changed', paint);
+    window.ProjectStore.restore().then(paint);
+    paint();
+}
+
 // ============================================
 // INIT
 // ============================================
@@ -587,5 +632,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initSettings();
     initKeyboard();
     initCharNameSync();
+    initProjectBar();
     console.log('⚔️ AS Adventurer initialized');
 });

@@ -46,6 +46,15 @@
         </nav>
     </header>
 
+    <div class="project-bar" id="projectBar">
+        <span class="project-label">Project</span>
+        <span id="projectName" class="project-name">No folder selected</span>
+        <button type="button" class="btn btn-sm btn-secondary" id="projectPickBtn" title="Pick a folder on this computer. Character subfolders are created when you save.">Choose folder</button>
+        <input type="text" id="projectPathInput" class="project-path" placeholder="/home/you/vtuber-project" title="Absolute path. Used if the browser has no folder picker.">
+        <button type="button" class="btn btn-sm btn-secondary" id="projectPathBtn">Use path</button>
+        <span id="projectHint" class="project-hint">Saves go to Project/Character/. Overlay clips are named neutral_idle.webm and so on.</span>
+    </div>
+
     <!-- ═══════════════════════════════════════
          TAB BAR
          ═══════════════════════════════════════ -->
@@ -909,14 +918,22 @@
                             <div class="form-row">
                                 <label>Quick Filename</label>
                                 <div class="filename-presets" id="exFilenamePresets">
-                                    <button class="filename-preset-btn" data-preset="Neutral_Idle" title="Set filename to {name}_Neutral_Idle">Neutral Idle</button>
-                                    <button class="filename-preset-btn" data-preset="Intro" title="Set filename to {name}_Intro">Intro</button>
-                                    <button class="filename-preset-btn" data-preset="Outro" title="Set filename to {name}_Outro">Outro</button>
-                                    <button class="filename-preset-btn" data-preset="Neutral_Speaking" title="Set filename to {name}_Neutral_Speaking">Neutral Speaking</button>
-                                    <button class="filename-preset-btn" data-preset="Animation" title="Set filename to {name}_Animation">Animation</button>
+                                    <button class="filename-preset-btn" data-preset="neutral_idle" title="Overlay file: Character/neutral_idle">Neutral Idle</button>
+                                    <button class="filename-preset-btn" data-preset="neutral_speaking" title="Overlay file: Character/neutral_speaking">Neutral Speaking</button>
+                                    <button class="filename-preset-btn" data-preset="happy_idle" title="Overlay file: Character/happy_idle">Happy Idle</button>
+                                    <button class="filename-preset-btn" data-preset="happy_speaking" title="Overlay file: Character/happy_speaking">Happy Speaking</button>
+                                    <button class="filename-preset-btn" data-preset="sad_idle" title="Overlay file: Character/sad_idle">Sad Idle</button>
+                                    <button class="filename-preset-btn" data-preset="sad_speaking" title="Overlay file: Character/sad_speaking">Sad Speaking</button>
+                                    <button class="filename-preset-btn" data-preset="surprised_idle" title="Overlay file: Character/surprised_idle">Surprised Idle</button>
+                                    <button class="filename-preset-btn" data-preset="surprised_speaking" title="Overlay file: Character/surprised_speaking">Surprised Speaking</button>
+                                    <button class="filename-preset-btn" data-preset="typing" title="Overlay file: Character/typing">Typing</button>
+                                    <button class="filename-preset-btn" data-preset="eyes_closed" title="Overlay file: Character/eyes_closed">Eyes Closed</button>
+                                    <button class="filename-preset-btn" data-preset="intro" title="Extra file, not an overlay expression">Intro</button>
+                                    <button class="filename-preset-btn" data-preset="outro" title="Extra file, not an overlay expression">Outro</button>
+                                    <button class="filename-preset-btn" data-preset="animation" title="Extra file, saved under extras/">Animation</button>
                                     <button class="filename-preset-btn" data-preset="custom" title="Enter a custom filename">Custom</button>
                                 </div>
-                                <input type="text" id="exFilename" placeholder="output" title="Output filename (without extension)" class="mt-1">
+                                <input type="text" id="exFilename" placeholder="neutral_idle" title="With a project open, overlay names save as Character/neutral_idle.webm" class="mt-1">
                             </div>
 
                             <!-- Estimate -->
@@ -1053,6 +1070,8 @@
 <script src="video-gen.js"></script>
 <script src="video-prep.js"></script>
 <script src="lib/export-names.js"></script>
+<script src="lib/project-layout.js"></script>
+<script src="lib/project-store.js"></script>
 <script src="lib/status-text.js"></script>
 <script src="lib/color-quantizer.js"></script>
 <script src="lib/gif-encoder.js"></script>

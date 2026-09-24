@@ -9,11 +9,12 @@ const path = require('path');
 const { exec } = require('child_process');
 const { createProvider } = require('./lib/image-provider');
 const { readVideoApiKey } = require('./public/lib/status-text');
+const { resolveProjectFile } = require('./lib/project-paths');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '120mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 app.use((req, res, next) => {
@@ -114,6 +115,19 @@ app.post('/api/video/poll', async (req, res) => {
         res.status(response.status).type('application/json').send(data);
     } catch (err) {
         res.status(502).json({ error: `Proxy error: ${err.message}` });
+    }
+});
+
+app.post('/api/project/save', (req, res) => {
+    try {
+        const { root, parts, dataBase64 } = req.body || {};
+        if (!dataBase64) return res.status(400).json({ error: 'missing file data' });
+        const dest = resolveProjectFile(root, parts);
+        fs.mkdirSync(path.dirname(dest), { recursive: true });
+        fs.writeFileSync(dest, Buffer.from(dataBase64, 'base64'));
+        res.json({ ok: true, path: dest });
+    } catch (err) {
+        res.status(400).json({ error: err.message });
     }
 });
 

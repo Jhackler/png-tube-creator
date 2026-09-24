@@ -1044,7 +1044,10 @@ class ModelExporter {
                 filenameInput.focus();
                 filenameInput.select();
             } else {
-                filenameInput.value = `${safeName}_${preset}`;
+                const projectOpen = window.ProjectStore && window.ProjectStore.isOpen();
+                filenameInput.value = projectOpen
+                    ? preset
+                    : `${safeName}_${preset}`;
             }
 
             // Highlight active preset
@@ -1745,9 +1748,19 @@ class ModelExporter {
         name = name.replace(/\.(webm|gif|mp4)$/i, '');
 
         const url = URL.createObjectURL(blob);
+        const projectOpen = window.ProjectStore && window.ProjectStore.isOpen();
+        const mapped = window.ProjectLayout && projectOpen
+            ? window.ProjectLayout.canonicalExport(name)
+            : null;
+        const filename = mapped ? `${mapped.file}.${ext}` : `${name}.${ext}`;
+        const bucket = mapped ? mapped.bucket : 'extras';
+        if (projectOpen) {
+            window.ProjectStore.saveAndDownload({ bucket, filename, blob, href: url });
+            return;
+        }
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${name}.${ext}`;
+        a.download = filename;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
